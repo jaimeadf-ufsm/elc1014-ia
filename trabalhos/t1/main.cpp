@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <chrono>
 
 struct State
 {
@@ -29,9 +30,15 @@ bool isValid(State s, int n)
     return true;
 }
 
-int bfs(int n, int boat)
+std::pair<int, int> bfs(int n, int boat)
 {
     std::queue<State> q;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    int reached_depth = 0;
+    int states_explored = 0;
+
     q.push({ 1, n, n, 0 });
 
     while (!q.empty())
@@ -39,10 +46,22 @@ int bfs(int n, int boat)
         State s = q.front();
         q.pop();
 
+        states_explored++;
+
+        if (s.depth > reached_depth)
+        {
+            reached_depth = s.depth;
+            
+            auto current_time = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
+
+            std::cout << "depth: " << reached_depth << ", elapsed: " << elapsed << "ns" << std::endl;
+        }
+
         // Chegamos ao estado final quando todos os missionários e canibais
         // estão do lado oposto (side == -1).
         if (s.side == -1 && s.cannibals == n && s.missionaires == n)
-            return s.depth;
+            return { s.depth, states_explored };
 
         // Gera os próximos estados possíveis, levando m missionários e
         // c canibais no barco. O barco tem capacidade para boat pessoas.
@@ -54,7 +73,7 @@ int bfs(int n, int boat)
                 if (c == 0 && m == 0)
                     continue;
                 
-                // Estou assumindo que, no barco, o número de missionário também
+                // Estou assumindo que, no barco, o número de missionários também
                 // deve ser maior ou igual ao de canibais para que não sejam comidos,
                 // a menos que não haja missionários no barco.
                 if (m > 0 && m < c)
@@ -73,7 +92,7 @@ int bfs(int n, int boat)
         }
     }
 
-    return -1;
+    return { -1, states_explored };
 }
 
 int main(int argc, char* argv[])
@@ -89,12 +108,12 @@ int main(int argc, char* argv[])
     n = std::stoi(argv[1]);
     boat = std::stoi(argv[2]);
 
-    int result = bfs(n, boat);
+    auto [depth, states_explored] = bfs(n, boat);
 
-    if (result != -1)
-        std::cout << "Minimum crossings: " << result << std::endl;
-    else
-        std::cout << "No solution found." << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "Total states explored: " << states_explored << std::endl;
+    std::cout << "Crossings: " << depth << std::endl;
 
     return 0;
 }
