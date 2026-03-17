@@ -46,8 +46,6 @@ std::pair<int, int> bfs(int n, int boat)
         State s = q.front();
         q.pop();
 
-        states_explored++;
-
         // Imprime o tempo decorrido a cada vez que alcançamos uma nova profundidade.
         if (s.depth > depth_reached)
         {
@@ -56,8 +54,13 @@ std::pair<int, int> bfs(int n, int boat)
             auto current_time = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
 
-            std::cout << "depth: " << depth_reached << ", elapsed: " << elapsed << "ns" << std::endl;
+            std::cout << "depth: " << depth_reached;
+            std::cout << ", states explored: " << states_explored;
+            std::cout << ", elapsed: " << elapsed << "ns";
+            std::cout << std::endl;
         }
+
+        states_explored++;
 
         // Chegamos ao estado final quando todos os missionários e canibais
         // estão do lado oposto (side == -1).
