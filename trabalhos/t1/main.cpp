@@ -36,7 +36,7 @@ std::pair<int, int> bfs(int n, int boat)
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    int reached_depth = 0;
+    int depth_reached = 0;
     int states_explored = 0;
 
     q.push({ 1, n, n, 0 });
@@ -48,14 +48,15 @@ std::pair<int, int> bfs(int n, int boat)
 
         states_explored++;
 
-        if (s.depth > reached_depth)
+        // Imprime o tempo decorrido a cada vez que alcançamos uma nova profundidade.
+        if (s.depth > depth_reached)
         {
-            reached_depth = s.depth;
+            depth_reached = s.depth;
             
             auto current_time = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
 
-            std::cout << "depth: " << reached_depth << ", elapsed: " << elapsed << "ns" << std::endl;
+            std::cout << "depth: " << depth_reached << ", elapsed: " << elapsed << "ns" << std::endl;
         }
 
         // Chegamos ao estado final quando todos os missionários e canibais
@@ -112,8 +113,8 @@ int main(int argc, char* argv[])
 
     std::cout << std::endl;
 
-    std::cout << "Total states explored: " << states_explored << std::endl;
-    std::cout << "Crossings: " << depth << std::endl;
+    std::cout << "total states explored: " << states_explored << std::endl;
+    std::cout << "crossings: " << depth << std::endl;
 
     return 0;
 }
