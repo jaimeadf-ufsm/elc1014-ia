@@ -132,18 +132,23 @@ std::pair<uint32_t, uint32_t> bfs(uint32_t n, uint32_t boat, bool deduplicate = 
 
 int main(int argc, char* argv[])
 {
-    uint32_t n, boat;
-
-    if (argc != 3)
+    if (argc != 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <n> <boat>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <n> <boat> <deduplicate>" << std::endl;
         return 1;
     }
 
-    n = std::stoi(argv[1]);
-    boat = std::stoi(argv[2]);
+    uint32_t n = std::stoi(argv[1]);
+    uint32_t boat = std::stoi(argv[2]);
+    bool deduplicate = std::atoi(argv[3]);
 
-    auto [depth, states_explored] = bfs(n, boat);
+    std::cout << "n: " << n;
+    std::cout << ", boat: " << boat;
+    std::cout << ", deduplicate: " << deduplicate;
+    std::cout << std::endl; 
+    std::cout << std::endl; 
+
+    auto [depth, states_explored] = bfs(n, boat, deduplicate);
 
     std::cout << std::endl;
 

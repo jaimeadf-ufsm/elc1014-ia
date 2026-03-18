@@ -15,22 +15,24 @@ fi
 
 for n in {1..6}; do
     for boat in {2..6}; do
-        EXPERIMENT_NAME="n${n}_boat${boat}"
-        EXPERIMENT_DIR="${EXPERIMENTS_DIR}/${EXPERIMENT_NAME}"
+        for deduplicate in {0..1}; do
+            EXPERIMENT_NAME="n${n}_boat${boat}_d${deduplicate}"
+            EXPERIMENT_DIR="${EXPERIMENTS_DIR}/${EXPERIMENT_NAME}"
 
-        mkdir -p ${EXPERIMENT_DIR}
+            mkdir -p ${EXPERIMENT_DIR}
 
-        /usr/bin/time -v timeout ${TIME_LIMIT}s bash -c "ulimit -v ${MEMORY_LIMIT}; ./main.o $n $boat" > ${EXPERIMENT_DIR}/output.txt 2> ${EXPERIMENT_DIR}/time.txt
+            /usr/bin/time -v timeout ${TIME_LIMIT}s bash -c "ulimit -v ${MEMORY_LIMIT}; ./main.o $n $boat $deduplicate" > ${EXPERIMENT_DIR}/output.txt 2> ${EXPERIMENT_DIR}/time.txt
 
-        exit_code=$?
+            exit_code=$?
 
-        echo $exit_code > ${EXPERIMENT_DIR}/exit_code.txt
+            echo $exit_code > ${EXPERIMENT_DIR}/exit_code.txt
 
-        if [ $exit_code -eq 0 ]; then
-            echo "n=$n boat=$boat | SUCCESS"
-        else
-            echo "n=$n boat=$boat | ERROR (exit code: $exit_code)"
-        fi
+            if [ $exit_code -eq 0 ]; then
+                echo "n=$n boat=$boat d=$deduplicate | SUCCESS"
+            else
+                echo "n=$n boat=$boat d=$deduplicate | ERROR (exit code: $exit_code)"
+            fi
+        done
     done
 done
 
