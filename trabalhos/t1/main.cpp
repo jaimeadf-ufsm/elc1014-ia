@@ -7,27 +7,34 @@
 struct State
 {
     uint8_t side;
-    uint32_t cannibals;
-    uint32_t missionaires;
-    uint32_t depth;
+    uint64_t cannibals;
+    uint64_t missionaires;
+    uint64_t depth;
+
+    bool operator==(const State& other) const
+    {
+        return side == other.side && cannibals == other.cannibals && missionaires == other.missionaires;
+    }
 };
 
-uint64_t makeKey(State s)
+struct StateHash
 {
-    uint64_t key = 0;
-    key |= (uint64_t)s.depth;
-    key |= (uint64_t)s.cannibals << 1;
-    key |= (uint64_t)s.missionaires << 32;
+    size_t operator()(const State& s) const
+    {
+        size_t h1 = std::hash<uint8_t>()(s.side);
+        size_t h2 = std::hash<uint64_t>()(s.cannibals);
+        size_t h3 = std::hash<uint64_t>()(s.missionaires);
+        
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+};
 
-    return key;
-}
-
-bool isValid(State s, uint32_t n)
+bool isValid(State s, uint64_t n)
 {
     // Em ambos os lados, o número de missionários deve ser maior ou igual ao
     // número de canibais, a menos que não haja missionários.
-    uint32_t other_canibals = n - s.cannibals;
-    uint32_t other_missionaires = n - s.missionaires;
+    uint64_t other_canibals = n - s.cannibals;
+    uint64_t other_missionaires = n - s.missionaires;
 
     if (s.missionaires > 0 && s.missionaires < s.cannibals)
         return false;
@@ -38,19 +45,19 @@ bool isValid(State s, uint32_t n)
     return true;
 }
 
-std::pair<uint32_t, uint32_t> bfs(uint32_t n, uint32_t boat, bool deduplicate = true)
+std::pair<uint64_t, uint64_t> bfs(uint64_t n, uint64_t boat, bool deduplicate = true)
 {
     std::queue<State> q;
-    std::unordered_set<uint64_t> d;
+    std::unordered_set<State, StateHash> d;
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    uint32_t depth_reached = 0;
-    uint32_t states_explored = 0;
-    uint32_t states_skipped = 0;
+    uint64_t depth_reached = 0;
+    uint64_t states_explored = 0;
+    uint64_t states_skipped = 0;
 
     q.push({ false, n, n, 0 });
-    d.insert(makeKey(q.front()));
+    d.insert(q.front());
 
     while (!q.empty())
     {
@@ -81,9 +88,9 @@ std::pair<uint32_t, uint32_t> bfs(uint32_t n, uint32_t boat, bool deduplicate = 
 
         // Gera os próximos estados possíveis, levando m missionários e
         // c canibais no barco. O barco tem capacidade para boat pessoas.
-        for (uint32_t m = 0; m <= std::min(boat, s.missionaires); m++)
+        for (uint64_t m = 0; m <= std::min(boat, s.missionaires); m++)
         {
-            for (uint32_t c = 0; c <= std::min(boat - m, s.cannibals); c++)
+            for (uint64_t c = 0; c <= std::min(boat - m, s.cannibals); c++)
             {
                 // O barco deve levar pelo menos um missionário ou um canibal.
                 if (c == 0 && m == 0)
@@ -109,17 +116,13 @@ std::pair<uint32_t, uint32_t> bfs(uint32_t n, uint32_t boat, bool deduplicate = 
                 // da busca de uma chave única, que representa o estado, no set.
                 if (deduplicate)
                 {
-                    uint64_t ns_key = makeKey(ns);
-
-                    if (d.find(ns_key) != d.end())
+                    if (d.find(ns) != d.end())
                     {
                         states_skipped++;
-
                         continue;
                     }
 
-
-                    d.insert(ns_key);
+                    d.insert(ns);
                 }
 
                 q.push(ns);
@@ -138,8 +141,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    uint32_t n = std::stoi(argv[1]);
-    uint32_t boat = std::stoi(argv[2]);
+    uint64_t n = std::stoull(argv[1]);
+    uint64_t boat = std::stoull(argv[2]);
     bool deduplicate = std::atoi(argv[3]);
 
     std::cout << "n: " << n;
