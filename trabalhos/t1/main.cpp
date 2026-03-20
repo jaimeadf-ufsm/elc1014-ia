@@ -78,6 +78,7 @@ bool bfs(uint32_t n, uint32_t boat, bool deduplicate = true)
                 auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time - start_time).count();
 
                 std::cout << "queue: " << q.size();
+                std::cout << ", table: " << d.size();
                 std::cout << ", depth: " << depth_reached;
                 std::cout << ", states explored: " << states_explored;
                 std::cout << ", states skipped: " << states_skipped;
@@ -150,6 +151,7 @@ bool bfs(uint32_t n, uint32_t boat, bool deduplicate = true)
     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
 
     std::cout << "queue: " << q.size();
+    std::cout << ", table: " << d.size();
     std::cout << ", depth: " << depth_reached;
     std::cout << ", states explored: " << states_explored;
     std::cout << ", states skipped: " << states_skipped;
