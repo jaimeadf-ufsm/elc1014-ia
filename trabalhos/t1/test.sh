@@ -18,7 +18,7 @@ for boat in {2..100}; do
     increment=1
     threshold=10
     
-    while [ true ]; do
+    while [ $n -le 2000000000 ]; do
         EXPERIMENT_NAME="n${n}_boat${boat}_d${DEDUPLICATE}"
         EXPERIMENT_DIR="${EXPERIMENTS_DIR}/${EXPERIMENT_NAME}"
 
