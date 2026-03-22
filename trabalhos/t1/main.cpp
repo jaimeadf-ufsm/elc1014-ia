@@ -37,7 +37,7 @@ class Solver
 {
 private:
     uint32_t n;
-    uint32_t boat;
+    uint32_t k;
 
     std::queue<std::pair<uint32_t, State>, std::list<std::pair<uint32_t, State>>> queue;
     std::unordered_set<State, StateHash> set;
@@ -51,7 +51,7 @@ private:
     uint32_t states_skipped;
 
 public:
-    Solver(uint32_t n, uint32_t boat) : n(n), boat(boat)
+    Solver(uint32_t n, uint32_t k) : n(n), k(k)
     {
     }
 
@@ -72,7 +72,7 @@ public:
         uint32_t depth_threshold = 100;
 
         std::cout << "n: " << n;
-        std::cout << ", boat: " << boat;
+        std::cout << ", k: " << k;
         std::cout << ", deduplicate: " << deduplicate;
         std::cout << ", memory limit: " << memory_limit;
         std::cout << std::endl; 
@@ -114,10 +114,10 @@ public:
             }
 
             // Gera os próximos estados possíveis, levando m missionários e
-            // c canibais no barco. O barco tem capacidade para boat pessoas.
-            for (uint32_t m = 0; m <= std::min(boat, s.missionaires); m++)
+            // c canibais no barco. O barco tem capacidade para k pessoas.
+            for (uint32_t m = 0; m <= std::min(k, s.missionaires); m++)
             {
-                for (uint32_t c = 0; c <= std::min(boat - m, s.cannibals); c++)
+                for (uint32_t c = 0; c <= std::min(k - m, s.cannibals); c++)
                 {
                     // O barco deve levar pelo menos um missionário ou um canibal.
                     if (c == 0 && m == 0)
@@ -232,16 +232,16 @@ int main(int argc, char* argv[])
 {
     if (argc < 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <n> <boat> <deduplicate> [memory_limit]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <n> <k> <deduplicate> [memory_limit]" << std::endl;
         return 1;
     }
 
     uint32_t n = std::stoi(argv[1]);
-    uint32_t boat = std::stoi(argv[2]);
+    uint32_t k = std::stoi(argv[2]);
     bool deduplicate = std::atoi(argv[3]);
     std::size_t memory_limit = argc >= 5 ? std::stoull(argv[4]) : std::numeric_limits<std::size_t>::max();
 
-    Solver solver(n, boat);
+    Solver solver(n, k);
     solver.solve(deduplicate, memory_limit);
 
     return 0;
