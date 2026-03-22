@@ -7,14 +7,15 @@ K = barco
 - Uso da busca em largura para encontrar a solução com o menor número de movimentos.
 
 # Metodologia
-- Parametrização da variável N e K.
+- Parametrização da variável N e K. Abordar estado inicial, função sucessora, tec...
 - Consideramos que no barco, o número de missionários também deve ser maior ou igual que o número de canibais para a solução ser válida. 
-- Utilização de tabela hash para ignorar estados já explorados.
-- Testes com a variável K variando de 1 a 128 em incrementos de 1 e a variável N variando de 1 a 256 em incrementos de 1 e, em seguida, exponencialmente até exceder a memória de 1GB.
+- Utilização de tabela hash para ignorar estados já explorados. Quando a combinação de N e K não possui solução, ficaríamos rodando até exaurir a memória caso explorassemos estados iguais, pois existem infinitas combinações de passos que chegam no mesmo estado.
+- Testes com a variável K variando de 1 a 128 em incrementos de 1 e a variável N variando de 1 a 256 em incrementos de 1 e, em seguida, exponencialmente até exceder a memória de 4GB.
 - Métricas coletadas a cada profundidade que o algoritmo alcança.
+- Objetivos da análise.
 
 # Resultados
-- Importancia da deduplicação. Escolher tamanhos de barco com o mesmo N (linhas) e plotar o número de estados explorados no Y conforme aumenta a profundidade no X. Hipótese: Quanto menor o barco, maior será a profundidade, e quanto maior, maior será a largura da árvore. N=4 com K=2, K=3 e K=4.
+- Importancia da deduplicação. Escolher tamanhos de barco com o mesmo N (linhas) e plotar o número de estados explorados no Y conforme aumenta a profundidade no X. Hipótese: Quanto menor o barco, maior será a profundidade, e quanto maior, maior será a largura da árvore. N=4 com K=2, K=3 e K=4. 
 - Talvez: Tabela do fator de ramificação médio. A ramificação é igual ao número de estados explorados da profundidade i divido pelo número da estados explorados da (i - 1).
 
 - Complexidade por N. Escolher alguns K fixos (as linhas) e plotar a memória e o tempo no Y gasto conforme aumenta o N no X.
