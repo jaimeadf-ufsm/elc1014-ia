@@ -1,12 +1,12 @@
 #!/bin/bash
 
-MEMORY_LIMIT=4194304 # 4GB in KB
+MEMORY_LIMIT=1073741824 # 1GB in bytes
 
 DEDUPLICATE="$1"
 EXPERIMENTS_DIR="experiments"
 
 echo "Compiling main.cpp..."
-g++ -o main.o main.cpp
+g++ -o main.o -O3 main.cpp
 
 if [ $? -ne 0 ]; then
     echo "Compilation failed!"
@@ -19,22 +19,20 @@ for boat in {2..100}; do
     threshold=10
     
     while [ $n -le 2000000000 ]; do
-        EXPERIMENT_NAME="n${n}_boat${boat}_d${DEDUPLICATE}"
-        EXPERIMENT_DIR="${EXPERIMENTS_DIR}/${EXPERIMENT_NAME}"
+        EXPERIMENT_FILE="${EXPERIMENTS_DIR}/n${n}_boat${boat}_d${DEDUPLICATE}.txt"
 
-        mkdir -p ${EXPERIMENT_DIR}
-
-        /usr/bin/time -v bash -c "ulimit -v ${MEMORY_LIMIT}; ./main.o $n $boat $DEDUPLICATE" > ${EXPERIMENT_DIR}/output.txt 2> ${EXPERIMENT_DIR}/time.txt
-
+        ./main.o $n $boat $DEDUPLICATE $MEMORY_LIMIT > ${EXPERIMENT_FILE}
         exit_code=$?
 
-        echo $exit_code > ${EXPERIMENT_DIR}/exit_code.txt
-
         if [ $exit_code -eq 0 ]; then
-            echo "n=$n boat=$boat d=$DEDUPLICATE | SUCCESS"
+            solution=$(grep "solution:" ${EXPERIMENT_FILE})
+            echo "n=$n boat=$boat d=$DEDUPLICATE | SUCCESS ($solution)"
+
+            if [[ $solution == *"memory limit"* ]]; then
+                break
+            fi
         else
             echo "n=$n boat=$boat d=$DEDUPLICATE | ERROR (exit code: $exit_code)"
-            break
         fi
 
         n=$((n + increment))
