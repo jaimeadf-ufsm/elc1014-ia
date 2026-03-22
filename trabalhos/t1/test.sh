@@ -6,17 +6,18 @@ DEDUPLICATE="$1"
 EXPERIMENTS_DIR="experiments"
 
 echo "Compiling main.cpp..."
-g++ -o main.o -O3 main.cpp
+# g++ -O3 -march=native -flto -o main.o main.cpp
+
+mkdir -p ${EXPERIMENTS_DIR}
 
 if [ $? -ne 0 ]; then
     echo "Compilation failed!"
     exit 1
 fi
 
-for boat in {2..100}; do
+for boat in {2..128}; do
     n=1
-    increment=1
-    threshold=10
+    threshold=256
     
     while [ $n -le 2000000000 ]; do
         EXPERIMENT_FILE="${EXPERIMENTS_DIR}/n${n}_boat${boat}_d${DEDUPLICATE}.txt"
@@ -35,11 +36,10 @@ for boat in {2..100}; do
             echo "n=$n boat=$boat d=$DEDUPLICATE | ERROR (exit code: $exit_code)"
         fi
 
-        n=$((n + increment))
-
-        if [ $n -ge $threshold ]; then
-            increment=$((increment * 10))
-            threshold=$((threshold * 10))
+        if [ $n -lt $threshold ]; then
+            n=$((n + 1))
+        else
+            n=$((n * 2))
         fi
     done
 done
