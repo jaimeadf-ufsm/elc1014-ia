@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <chrono>
+#include <list>
 #include <unordered_set>
 #include <cstdint>
 
@@ -38,7 +39,7 @@ private:
     uint32_t n;
     uint32_t boat;
 
-    std::queue<std::pair<uint32_t, State>> queue;
+    std::queue<std::pair<uint32_t, State>, std::list<std::pair<uint32_t, State>>> queue;
     std::unordered_set<State, StateHash> set;
 
     std::chrono::high_resolution_clock::time_point start_time;
@@ -197,24 +198,26 @@ private:
         std::cout << ", table buckets: " << set.bucket_count();
         std::cout << ", states explored: " << states_explored;
         std::cout << ", states skipped: " << states_skipped;
-        std::cout << ", memory usage: " << memory_usage << " bytes";
-        std::cout << ", time elapsed: " << elapsed << "ns";
+        std::cout << ", memory usage: " << memory_usage; // bytes
+        std::cout << ", time elapsed: " << elapsed; // nanosegundos
         std::cout << std::endl;
     }
 
     void refreshMemoryUsage()
     {
-        // Estima a memória usada pela fila e pelo set, considerando o número de elementos e a estrutura interna de cada um.
+        // Estima a memória usada pela fila e pelo set, considerando o número de
+        // elementos e a estrutura interna de cada um.
 
-        // Para a fila, o tamanho total é igual ao número de elementos multiplicado
-        // pelo tamanho de cada.
-        std::size_t queue_memory = queue.size() * sizeof(std::pair<uint32_t, State>);
+        // Para a fila, a memória é aproximadamente o número de elementos
+        // multiplicado pelo tamanho de cada mais a sobrecarga da lista encadeada.
+        std::size_t queue_memory = queue.size() * (sizeof(std::pair<uint32_t, State>) + 4 * sizeof(void*));
 
         // Para o set, a memória depende do número de elementos e do número de buckets.
 
-        // Cada no armazena um elemento e um ponteiro para o próximo no.
+        // Cada nó armazena um elemento e um ponteiro para o próximo nó.
         std::size_t set_nodes_memory = set.size() * (sizeof(State) + sizeof(void*));
-        // Cada bucket armazena um ponteiro para o primeiro no da lista encadeada e um contador de elementos.
+        // Cada bucket armazena um ponteiro para o primeiro nó da lista encadeada
+        // e um contador de elementos.
         std::size_t set_buckets_memory = set.bucket_count() * (sizeof(void*) + sizeof(size_t));
 
         // Multiplicamos por um fator para estimar a sobrecarga de alocação.
