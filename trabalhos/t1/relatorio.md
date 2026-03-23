@@ -68,7 +68,7 @@ Sem deduplicação, o número de estados cresce de forma acentuada a cada nível
 
 Para avaliar como a complexidade escala com o tamanho do problema, fixamos alguns valores representativos de K e variamos N no eixo X, plotando o tempo de execução e a memória de pico no eixo Y. A memória de pico é extraída do maior valor de ```memory_usage``` reportado durante a execução, que reflete o momento em que a fila atinge sua largura máxima.
 
-![alt text](plots/complexidade_por_n.png)
+![alt text](plots/complexidade_por_n_0_256.png)
 
 Observa-se que ...
 
