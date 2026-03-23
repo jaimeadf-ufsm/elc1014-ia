@@ -6,6 +6,7 @@ O problema dos missionários e canibais é um clássico da inteligência artific
 
 Neste trabalho, generalizamos o problema ao parametrizar o número de pares missionário-canibal como N e a capacidade do barco como K. O objetivo é estudar como essas duas variáveis afetam a complexidade da busca: o número de estados explorados, o consumo de memória, o tempo de execução e a profundidade da solução ótima. A busca em largura (BFS) é utilizada por garantir que a primeira solução encontrada possui o menor número de movimentos possível.
 
+No total foram feitos 43068 testes, observou-se que para $K = 2$ foram encontradas soluções apenas para $N = 1, N = 2 \text{ e } N = 3$, para $K = 3$, encontrou-se solução para $N = [1...5]$.
 ## 2. Metodologia
 
 ### 2.1. Formulação do Problema
@@ -66,15 +67,16 @@ Sem deduplicação, o número de estados cresce de forma acentuada a cada nível
 
 ### 3.2. Complexidade por N (K fixo)
 
-Para avaliar como a complexidade escala com o tamanho do problema, fixamos alguns valores representativos de K e variamos N no eixo X, plotando o tempo de execução e a memória de pico no eixo Y. A memória de pico é extraída do maior valor de ```memory_usage``` reportado durante a execução, que reflete o momento em que a fila atinge sua largura máxima.
+Para avaliar como a complexidade escala com o tamanho do problema, fixamos alguns valores representativos de K e variamos N no eixo X de até 256, plotando o tempo de execução e a memória de pico no eixo Y. A memória de pico é extraída do maior valor de ```memory_usage``` reportado durante a execução, que reflete o momento em que a fila atinge sua largura máxima.
 
 ![alt text](plots/complexidade_por_n_0_256.png)
 
-Observa-se que ...
+Observa-se que conforme esperado, tanto a memória quanto o tempo de execução crescem à medida que o N também cresce para um mesmo K. Isso mostra que é necessário mais viagens de barco para resolver o problema, uma vez que temos mais "passageiros".
 
 ### 3.3. Complexidade por K (N fixo)
 Para estudar o efeito isolado da capacidade do barco, fixamos valores representativos de N e variamos K no eixo X.
-O comportamento aqui mostra que aumentar K inicialmente reduz o tempo, pois a profundidade da solução diminui. Contudo, a partir de certo ponto, K grande demais aumenta o fator de ramificação de cada nó — mais combinações de passageiros são válidas —, podendo aumentar o custo total da busca mesmo que a solução seja mais rasa. Existe, portanto, um K ótimo que minimiza o custo da BFS para cada N.
-Casos sem solução (como $K = 1$ para $N \geq 2$) são detectados pelo esvaziamento da fila, reportados como solution: (not found). Casos interrompidos por limite de memória são reportados como solution: (memory limit), permitindo distinguir as três categorias de resultado — solução encontrada, insolúvel e intratável — de forma direta na análise.
+Nota-se que o pico da memória depende apenas do valor de N, e cresce de maneira linear, tendo complexidade $O(N)$.
+
+O comportamento do tempo de execução mostra um crescimento aparentemente quadrático no tempo de execução para um mesmo N à medida que o K aumenta, ou seja, quanto maior K, maior a ramificação da árvore, e precisa-se de mais tempo para percorrer sua largura, e a complexidade dessa operação é $O(K^2)$.
 
 ![alt text](plots/complexidade_por_k.png)
