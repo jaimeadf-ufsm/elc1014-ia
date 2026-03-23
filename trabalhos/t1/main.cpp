@@ -3,6 +3,7 @@
 #include <chrono>
 #include <list>
 #include <unordered_set>
+#include <unordered_map>
 #include <cstdint>
 
 struct State
@@ -18,6 +19,11 @@ struct State
             cannibals == other.cannibals &&
             missionaires == other.missionaires
         );
+    }
+
+    bool operator!=(const State& other) const
+    {
+        return !(*this == other);
     }
 };
 
@@ -42,6 +48,8 @@ private:
     std::queue<std::pair<uint32_t, State>, std::list<std::pair<uint32_t, State>>> queue;
     std::unordered_set<State, StateHash> set;
 
+    std::unordered_map<State, State, StateHash> parent;
+
     std::chrono::high_resolution_clock::time_point start_time;
     
     std::size_t memory_usage;
@@ -55,10 +63,11 @@ public:
     {
     }
 
-    void solve(bool deduplicate = true, std::size_t memory_limit = std::numeric_limits<std::size_t>::max())
+    void solve(bool deduplicate = true, bool backtrack = false, std::size_t memory_limit = std::numeric_limits<std::size_t>::max())
     {
         queue = {};
         set = {};
+        parent = {};
 
         start_time = std::chrono::high_resolution_clock::now();
 
@@ -151,6 +160,9 @@ public:
                         set.insert(ns);
                     }
 
+                    if (backtrack)
+                        parent[ns] = s;
+
                     queue.push({ depth + 1, ns });
                 }
             }
@@ -168,6 +180,36 @@ public:
             std::cout << "solution: (not found)" << std::endl;
         else
             std::cout << "solution: (memory limit)" << std::endl;
+        
+        if (backtrack && solved)
+        {
+            std::cout << std::endl;
+            std::cout << "path: " << std::endl;
+
+            std::vector<State> path;
+
+            path.push_back({ 1, n, n });
+
+            while (path.back() != State{ 0, n, n })
+                path.push_back(parent[path.back()]);
+            
+            for (size_t i = path.size(); i > 1; i--)
+            {
+                auto& sc = path[i - 1];
+                auto& sn = path[i - 2];
+
+                uint32_t sc_c = sc.cannibals;
+                uint32_t sc_m = sc.missionaires;
+
+                uint32_t sn_c = n - sn.cannibals;
+                uint32_t sn_m = n - sn.missionaires;
+
+                uint32_t dc = std::abs((int64_t)sc_c - (int64_t)sn_c);
+                uint32_t dm = std::abs((int64_t)sc_m - (int64_t)sn_m);
+
+                std::cout << "  " << (sc.side ? "<-" : "->") << " (c: " << dc << ", m: " << dm << ")" << std::endl;
+            }
+        }
     }
 
 private:
@@ -230,16 +272,17 @@ private:
     
 int main(int argc, char* argv[])
 {
-    if (argc < 4)
+    if (argc < 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <n> <k> <deduplicate> [memory_limit]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <n> <k> <deduplicate> <backtrack> [memory_limit]" << std::endl;
         return 1;
     }
 
     uint32_t n = std::stoi(argv[1]);
     uint32_t k = std::stoi(argv[2]);
     bool deduplicate = std::atoi(argv[3]);
-    std::size_t memory_limit = argc >= 5 ? std::stoull(argv[4]) : std::numeric_limits<std::size_t>::max();
+    bool backtrack = std::atoi(argv[4]);
+    std::size_t memory_limit = argc >= 6 ? std::stoull(argv[5]) : std::numeric_limits<std::size_t>::max();
 
     Solver solver(n, k);
     solver.solve(deduplicate, memory_limit);

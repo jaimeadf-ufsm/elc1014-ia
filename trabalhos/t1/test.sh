@@ -22,7 +22,7 @@ for k in {2..128}; do
     while [ $n -le 2000000000 ]; do
         experiment_file="${EXPERIMENTS_DIR}/n${n}_k${k}_d${DEDUPLICATE}.txt"
 
-        ./main.o $n $k $DEDUPLICATE $MEMORY_LIMIT > ${experiment_file}
+        ./main.o $n $k $DEDUPLICATE 0 $MEMORY_LIMIT > ${experiment_file}
         exit_code=$?
 
         if [ $exit_code -eq 0 ]; then
