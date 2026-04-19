@@ -38,3 +38,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# -- Todo --
+# - Passar a vez se não tiver jogada disponível
+# - Condição de fim de jogo (tabuleiro cheio)
+# - Indicar movimentos válidos?
+# - Mostrar qual jogador está jogando
