@@ -34,7 +34,7 @@ class GameVariant:
     
 class ClassicalGameVariant(GameVariant):
     size: int
-    directions: List[Tuple[int, int]]
+    directions: list[Tuple[int, int]]
     
     def __init__(self, size: int = 8):
         self.size = size
@@ -83,7 +83,7 @@ class ClassicalGameVariant(GameVariant):
         return new_state
         
     def get_legal_moves(self, board: Board, player: Player):
-        moves: List[Move] = []
+        moves: list[Move] = []
         opponent = player.opponent()
         
         for row in range(board.size):
@@ -135,7 +135,7 @@ class ClassicalGameVariant(GameVariant):
 
 class WrapAroundVariant(GameVariant):
     size: int
-    directions: List[Tuple[int, int]]
+    directions: list[Tuple[int, int]]
     
     def __init__(self, size: int = 8):
         self.size = size
@@ -184,7 +184,7 @@ class WrapAroundVariant(GameVariant):
         return new_state
         
     def get_legal_moves(self, board: Board, player: Player):
-        moves: List[Move] = []
+        moves: list[Move] = []
         opponent = player.opponent()
         
         for row in range(board.size):

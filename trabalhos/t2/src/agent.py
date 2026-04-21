@@ -1,4 +1,6 @@
 import random
+import math
+from typing import Self
 
 from move import *
 from game import *
@@ -80,6 +82,113 @@ class MinimaxAgent(Agent):
 
             return min_score, min_move
             
+
+class MCTSNode:
+    state: GameState
+    variant: GameVariant
+    
+    move: Move | None
+
+    q: int
+    n: int
+
+    parent: Self | None
+    children: list['MCTSNode']
+    
+    untried_moves: list[Move]
+    
+    def __init__(self, variant: GameVariant, state: GameState, move: Move | None, parent: Self | None):
+        self.variant = variant
+        self.state = state
+        
+        self.move = move
+        
+        self.q = 0
+        self.n = 0
+        
+        self.parent = parent
+        self.children = []
+        
+        self.untried_moves = state.moves.copy()
+
+    def expand(self):
+        next_move = self.untried_moves.pop()
+        
+        next_state = self.variant.make_move(self.state, next_move)
+        next_node = MCTSNode(self.variant, next_state, next_move, self)
+        
+        self.children.append(next_node)
+        
+        return next_node
+    
+    def rollout(self):
+        state = self.state
+        
+        while not state.is_over():
+            move = self.rollout_policy(state)
+            state = self.variant.make_move(state, move)
+        
+        return state.winner
+
+    def rollout_policy(self, state: GameState):
+        return random.choice(state.moves)
+
+    def backpropagate(self, result: Player | None):
+        if result == self.state.player.opponent():
+            self.q += 1
+        elif result == self.state.player:
+            self.q -= 1
             
+        self.n += 1
+        
+        if self.parent:
+            self.parent.backpropagate(result)
+    
+    def best_child(self, c=1.4):
+        best_uct = float('-inf')
+        best_child = self.children[0]
+        
+        for child in self.children:
+            uct = child.q / child.n
+            uct += c * math.sqrt(math.log(self.n) / child.n)
             
+            if uct > best_uct:
+                best_uct = uct
+                best_child = child
+        
+        return best_child
+    
+    def is_terminal(self):
+        return self.state.is_over()
+    
+    def is_fully_expanded(self):
+        return len(self.untried_moves) == 0
             
+class MCTSAgent(Agent):
+    iterations: int
+    
+    def __init__(self, iterations: int):
+        self.iterations = iterations
+        
+    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
+        root = MCTSNode(variant, state, None, None)
+        
+        for i in range(self.iterations):
+            leaf = self.tree_policy(root)
+            result = leaf.rollout()
+            leaf.backpropagate(result)
+            
+        # if c_param is 0.0, it only considers the score for exploitation
+        return root.best_child(0).move
+    
+    def tree_policy(self, root: MCTSNode):
+        node = root
+        
+        while not node.is_terminal():
+            if not node.is_fully_expanded():
+                return node.expand()
+            else:
+                node = node.best_child()
+        
+        return node
+    
