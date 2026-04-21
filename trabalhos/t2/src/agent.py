@@ -7,11 +7,11 @@ from provider import *
 
 class Agent:
     @abstractmethod
-    def get_move(self, variant: GameVariant, state: GameState) -> Move:
+    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
         pass
 
 class RandomAgent(Agent):
-    def get_move(self, variant: GameVariant, state: GameState) -> Move:
+    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
         return random.choice(state.moves)
 
 class HumanAgent(Agent):
@@ -20,7 +20,7 @@ class HumanAgent(Agent):
     def __init__(self, provider: InputProvider):
         self.provider = provider
     
-    def get_move(self, variant: GameVariant, state: GameState) -> Move:
+    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
         return self.provider.request_move(variant, state)
 
 class MinimaxAgent(Agent):
@@ -31,7 +31,7 @@ class MinimaxAgent(Agent):
         self.evaluator = evaluator
         self.depth = depth
         
-    def get_move(self, variant: GameVariant, state: GameState) -> Move:
+    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
         score, move = self.minimax(variant, state, state.player, self.depth, float('-inf'), float('inf'))
         assert move is not None
         

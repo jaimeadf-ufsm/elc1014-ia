@@ -21,7 +21,8 @@ class Engine:
         agent = self.get_playing_agent()
         move = agent.get_move(self.game_variant, self.game_state)
         
-        self.game_state = self.game_variant.make_move(self.game_state, move)
+        if move is not None:
+            self.game_state = self.game_variant.make_move(self.game_state, move)
         
         return move
     

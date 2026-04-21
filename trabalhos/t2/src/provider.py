@@ -16,7 +16,7 @@ class InputProvider:
         self.game_variant = None
         self.move = None
         
-    def answer_move(self, move: Move):
+    def answer_move(self, move: Move | None):
         with self.condition:
             self.move = move
             self.condition.notify_all()
@@ -28,8 +28,6 @@ class InputProvider:
             
             self.condition.wait()
             
-            assert self.move is not None
-
             self.game_variant = None
             self.game_state = None
             

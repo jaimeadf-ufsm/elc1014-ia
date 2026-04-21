@@ -17,6 +17,6 @@ if __name__ == '__main__':
     white_agent = HumanAgent(provider)
     
     engine = Engine(variant, black_agent, white_agent)
-    gui = GUI(engine, provider)
+    gui = GUI(engine, provider, 'manual')
     
     gui.run()
