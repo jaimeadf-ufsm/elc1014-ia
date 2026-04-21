@@ -35,15 +35,11 @@ class Board:
         return new_board
     
     def count_pieces(self, player: Player):
-        count = 0
-        
-        for row in range(self.size):
-            for col in range(self.size):
-                if self[row, col] == player:
-                    count += 1
-                
-        return count
-    
+        if player == Player.WHITE:
+            return self.white_pieces.bit_count()
+        else:
+            return self.black_pieces.bit_count()
+
     def piece_bitmask(self, row: int, col: int):
         return 1 << (row * self.size + col)
     

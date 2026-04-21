@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Tuple
+from itertools import chain
 
 from player import *
 from board import *
@@ -168,8 +169,7 @@ class WrapAroundVariant(GameVariant):
         player = state.player
         opponent = state.player.opponent()
         
-        new_state.board = state.board.with_pieces(move.placements, player)
-        new_state.board = new_state.board.with_pieces(move.captures, player)
+        new_state.board = new_state.board.with_pieces(chain(move.captures, move.placements), player)
         
         new_state.player = opponent
         new_state.moves = self.get_legal_moves(new_state.board, opponent)
