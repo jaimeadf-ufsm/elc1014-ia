@@ -11,12 +11,12 @@ if __name__ == '__main__':
     
     provider = InputProvider()
     
-    variant = ClassicalGameVariant()
+    variant = WrapAroundVariant()
 
     black_agent = MinimaxAgent(SimpleCountEvaluator(), 6)
     white_agent = HumanAgent(provider)
     
     engine = Engine(variant, black_agent, white_agent)
-    gui = GUI(engine, provider, 'manual')
+    gui = GUI(engine, provider, 'auto')
     
     gui.run()
