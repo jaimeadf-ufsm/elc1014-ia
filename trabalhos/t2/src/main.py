@@ -13,8 +13,24 @@ if __name__ == '__main__':
     
     variant = ClassicalGameVariant(6)
 
-    # black_agent = MinimaxAgent(SimpleCountEvaluator(), 6)
-    black_agent = MCTSAgent(1000)
+    # Exemplos de uso dos diferentes evaluators:
+    
+    # 1. SimpleCountEvaluator - apenas conta peças (baseline)
+    black_agent = MinimaxAgent(SimpleCountEvaluator(), 6)
+    
+    # 2. PositionalEvaluator - avalia posições no tabuleiro
+    #black_agent = MinimaxAgent(PositionalEvaluator(), 6)
+    
+    # 3. QuietMoveEvaluator - prioriza jogadas silenciosas
+    #black_agent = MinimaxAgent(QuietMoveEvaluator(), 6)
+    
+    # 4. PhaseAwareEvaluator - adapta estratégia por fase do jogo
+    #black_agent = MinimaxAgent(PhaseAwareEvaluator(), 6)
+    
+    # 5. AdvancedPhaseAwareEvaluator - versão avançada com múltiplas métricas
+    #black_agent = MinimaxAgent(AdvancedPhaseAwareEvaluator(), 6)
+    
+    #black_agent = MCTSAgent(1000)
     white_agent = MinimaxAgent(SimpleCountEvaluator(), 6)
     # white_agent = RandomAgent()
     
