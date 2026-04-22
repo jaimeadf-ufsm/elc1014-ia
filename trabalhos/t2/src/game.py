@@ -68,8 +68,9 @@ class ClassicalGameVariant(GameVariant):
         player = state.player
         opponent = state.player.opponent()
         
-        new_state.board = state.board.with_pieces(move.placements, player)
-        new_state.board = new_state.board.with_pieces(move.captures, player)
+        new_pieces = chain(move.captures, move.placements)
+        
+        new_state.board = state.board.with_pieces(new_pieces, player)
         
         new_state.player = opponent
         new_state.moves = self.get_legal_moves(new_state.board, opponent)
@@ -134,7 +135,7 @@ class ClassicalGameVariant(GameVariant):
         else:
             return None
 
-class WrapAroundVariant(GameVariant):
+class WrapAroundGameVariant(GameVariant):
     size: int
     directions: list[Tuple[int, int]]
     
@@ -169,7 +170,9 @@ class WrapAroundVariant(GameVariant):
         player = state.player
         opponent = state.player.opponent()
         
-        new_state.board = new_state.board.with_pieces(chain(move.captures, move.placements), player)
+        new_pieces = chain(move.captures, move.placements)
+        
+        new_state.board = state.board.with_pieces(new_pieces, player)
         
         new_state.player = opponent
         new_state.moves = self.get_legal_moves(new_state.board, opponent)
@@ -200,16 +203,14 @@ class WrapAroundVariant(GameVariant):
                 for dr, dc in self.directions:
                     dir_captures: list[Position] = []
                     
-                    cur_row = (row + dr) % board.size
-                    cur_col = (col + dc) % board.size
+                    cur_row, cur_col = self.wrap_step(board, row, col, dr, dc)
                     
                     # Caminha enquanto encontrar peças do oponente dentro do
                     # tabuleiro
                     while board[cur_row, cur_col] == opponent:
                         dir_captures.append(Position(cur_row, cur_col))
                         
-                        cur_row = (cur_row + dr) % board.size
-                        cur_col = (cur_col + dc) % board.size
+                        cur_row, cur_col = self.wrap_step(board, cur_row, cur_col, dr, dc)
                     
                     # Se o loop parou e encontrou uma peça do jogador atual,
                     # fechou o oponente
@@ -233,4 +234,31 @@ class WrapAroundVariant(GameVariant):
             return Player.WHITE
         else:
             return None
+    
+    def wrap_step(self, board: Board, row: int, col: int, dr: int, dc: int):
+        nr = row + dr
+        nc = col + dc
         
+        if 0 <= nr < board.size and 0 <= nc < board.size:
+            return nr, nc
+        
+        if dr > 0:
+            kr = row
+        elif dr < 0:
+            kr = board.size - 1
+        else:
+            kr = float('inf')
+            
+        if dc > 0:
+            kc = col
+        elif dc < 0:
+            kc = board.size - 1
+        else:
+            kc = float('inf')
+            
+        k = int(min(kr, kc))
+        
+        wr = row - dr * k
+        wc = col - dc * k
+        
+        return wr, wc
