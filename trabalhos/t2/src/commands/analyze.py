@@ -1,37 +1,18 @@
-import argparse
-import pathlib
 from typing import Any
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 
 from study import *
 
-sns.set_theme()
-sns.set_style('ticks')
-
-def setup_analysis_command(parser: argparse.ArgumentParser):
-    parser.add_argument('--input', '-i', type=pathlib.Path, required=True)
-    parser.add_argument('--output', '-o', type=pathlib.Path, default=pathlib.Path('analysis'))
-    subparsers = parser.add_subparsers(dest='kind', required=True)
+def general_pipeline(args: Any):
+    import pandas as pd
     
-    comparsion_parser = subparsers.add_parser('comparison')
-    comparsion_parser.set_defaults(func=comparison_analysis)
-    
-    move_parser = subparsers.add_parser('move')
-    move_parser.set_defaults(func=move_analysis)
-    
-    
-def comparison_analysis(args: Any):
     input_path = args.input
     output_path = args.output
     
     study = Study.load(input_path)
     stats = collect_match_statistics(study)
     
-    rows = []
+    color_rows = []
+    agent_rows = []
     
     for (black_agent, white_agent), player_stats in stats.items():
         black_wr, black_avg_time, black_wins, black_losses, black_draws = compute_player_metrics(
@@ -42,7 +23,7 @@ def comparison_analysis(args: Any):
             player_stats[Player.WHITE]
         )
         
-        rows.append({
+        color_rows.append({
             'black_agent': black_agent,
             'white_agent': white_agent,
             'black_win_rate': round(black_wr, 2),
@@ -57,15 +38,61 @@ def comparison_analysis(args: Any):
             'white_draws': white_draws,
         })
         
-    df = pd.DataFrame(rows)
+    for (player_agent, opponent_agent) in stats.keys():
+        player_as_black = stats[(player_agent, opponent_agent)][Player.BLACK]
+        player_as_white = stats[(opponent_agent, player_agent)][Player.WHITE]
+        
+        opponent_as_black = stats[(opponent_agent, player_agent)][Player.BLACK]
+        opponent_as_white = stats[(player_agent, opponent_agent)][Player.WHITE]
+        
+        player_stats = {
+            'wins': player_as_white['wins'] + player_as_black['wins'],
+            'losses': player_as_white['losses'] + player_as_black['losses'],
+            'draws': player_as_white['draws'] + player_as_black['draws'],
+            'metrics': player_as_white['metrics'] + player_as_black['metrics']
+        }
+        
+        opponent_stats = {
+            'wins': opponent_as_white['wins'] + opponent_as_black['wins'],
+            'losses': opponent_as_white['losses'] + opponent_as_black['losses'],
+            'draws': opponent_as_white['draws'] + opponent_as_black['draws'],
+            'metrics': opponent_as_white['metrics'] + opponent_as_black['metrics']
+        }
+        
+        player_metrics = compute_player_metrics(player_stats)
+        opponent_metrics = compute_player_metrics(opponent_stats)
+        
+        agent_rows.append({
+            'player_agent': player_agent,
+            'opponent_agent': opponent_agent,
+            'player_win_rate': round(player_metrics[0], 2),
+            'player_avg_time': round(player_metrics[1], 3),
+            'player_wins': player_metrics[2],
+            'player_losses': player_metrics[3],
+            'player_draws': player_metrics[4],
+            'opponent_win_rate': round(opponent_metrics[0], 2),
+            'opponent_avg_time': round(opponent_metrics[1], 3),
+            'opponent_wins': opponent_metrics[2],
+            'opponent_losses': opponent_metrics[3],
+            'opponent_draws': opponent_metrics[4],
+        })
+            
+        
+    color_df = pd.DataFrame(color_rows)
+    agent_df = pd.DataFrame(agent_rows)
     
-    df.to_csv(output_path / 'comparison.csv', index=False)
+    color_df.to_csv(output_path / 'color_comparison.csv', index=False)
+    agent_df.to_csv(output_path / 'agent_comparison.csv', index=False)
 
 def move_analysis(args: Any):
-    input = args.input
-    output = args.output
+    import numpy as np
+    import seaborn as sns
+    import matplotlib.pyplot as plt
     
-    study = Study.load(input)
+    input_path = args.input
+    output_path = args.output
+    
+    study = Study.load(input_path)
     
     stats = {}
     
@@ -131,7 +158,7 @@ def move_analysis(args: Any):
             sns.heatmap(captures, ax=ax_captures, cmap='Reds', annot=True, fmt='d', square=True, cbar_kws={'shrink': 0.8})
             ax_captures.set_title(f'Capturas', pad=10)
         
-        plt.savefig(output / f'{black_agent}_vs_{white_agent}_heatmap.png')
+        plt.savefig(output_path / f'{black_agent}_vs_{white_agent}_heatmap.png')
 
 
 def collect_match_statistics(study: Study):
@@ -186,4 +213,9 @@ def compute_player_metrics(player_stats: dict):
     
     return win_rate, avg_time, wins, losses, draws
 
+ANALYZE_PIPELINES = {
+    'general': general_pipeline
+}
 
+def analyze(args: Any):
+    ANALYZE_PIPELINES[args.pipeline](args)

@@ -368,20 +368,3 @@ class GUI:
         
     def _get_player_color(self, player: Player):
         return self.palette['black'] if player == Player.BLACK else self.palette['white']
-
-def execute_gui(args: Any):
-    provider = InputProvider()
-    
-    variant = ClassicalGameVariant(6)
-
-    black_agent = MinimaxAgent(AdvancedPhaseAwareEvaluator(), 7)
-    black_agent = RandomAgent()
-    white_agent = MCTSAgent(1000)
-    
-    match = Match(variant, black_agent, white_agent)
-    gui = GUI(match, provider, 'manual')
-    
-    gui.run()
-    
-def setup_gui_command(parser: argparse.ArgumentParser):
-    parser.set_defaults(func=execute_gui)
