@@ -1,6 +1,6 @@
 import random
 import math
-from typing import Self
+from typing import Self, Any
 
 from move import *
 from game import *
@@ -9,21 +9,30 @@ from provider import *
 
 class Agent:
     @abstractmethod
-    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
+    def get_move(self, variant: GameVariant, state: GameState) -> tuple[Move | None, dict[str, Any]]:
         pass
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__)
+    
+    def __hash__(self) -> int:
+        return hash(self.__class__)
+    
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}()'
 
 class RandomAgent(Agent):
-    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
-        return random.choice(state.moves)
-
+    def get_move(self, variant: GameVariant, state: GameState):
+        return random.choice(state.moves), {}
+    
 class HumanAgent(Agent):
     provider: InputProvider
     
     def __init__(self, provider: InputProvider):
         self.provider = provider
     
-    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
-        return self.provider.request_move(variant, state)
+    def get_move(self, variant: GameVariant, state: GameState):
+        return self.provider.request_move(variant, state), {}
 
 class MinimaxAgent(Agent):
     evaluator: Evaluator
@@ -33,13 +42,20 @@ class MinimaxAgent(Agent):
         self.evaluator = evaluator
         self.depth = depth
         
-    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
-        score, move = self.minimax(variant, state, state.player, self.depth, float('-inf'), float('inf'))
+    def get_move(self, variant: GameVariant, state: GameState):
+        metrics: dict[str, Any] = {
+            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth) }
+        }
+        
+        score, move = self.minimax(variant, state, state.player, self.depth, float('-inf'), float('inf'), metrics)
         assert move is not None
         
-        return move
+        metrics['total_nodes_explored'] = sum(depth_metrics['nodes_explored'] for depth_metrics in metrics['by_depth'].values())
+        metrics['total_nodes_pruned'] = sum(depth_metrics['nodes_pruned'] for depth_metrics in metrics['by_depth'].values())
         
-    def minimax(self, variant: GameVariant, state: GameState, player: Player, depth: int, alpha: float, beta: float):
+        return move, metrics
+        
+    def minimax(self, variant: GameVariant, state: GameState, player: Player, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
         if depth == 0 or state.is_over():
             return self.evaluator.evaluate(variant, state, player), None
         
@@ -49,9 +65,11 @@ class MinimaxAgent(Agent):
             max_score = float('-inf')
             max_move = None
             
-            for move in state.moves:
+            for i, move in enumerate(state.moves):
+                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
+
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta)
+                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
                 
                 if next_score > max_score:
                     max_score = next_score
@@ -60,6 +78,7 @@ class MinimaxAgent(Agent):
                     alpha = max(alpha, max_score)                    
                     
                 if beta <= alpha:
+                    metrics['by_depth'][self.depth - depth]['nodes_pruned'] += len(state.moves) - i - 1
                     break
             
             return max_score, max_move
@@ -67,9 +86,10 @@ class MinimaxAgent(Agent):
             min_score = float('inf')
             min_move = None
             
-            for move in state.moves:
+            for i, move in enumerate(state.moves):
+                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta)
+                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
                 
                 if next_score < min_score:
                     min_score = next_score
@@ -78,10 +98,22 @@ class MinimaxAgent(Agent):
                     beta = min(beta, min_score)
                     
                 if beta <= alpha:
+                    metrics['by_depth'][self.depth - depth]['nodes_pruned'] += len(state.moves) - i - 1
                     break
 
             return min_score, min_move
-            
+    
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, MinimaxAgent):
+            return False
+        
+        return self.evaluator == value.evaluator and self.depth == value.depth
+    
+    def __hash__(self) -> int:
+        return hash((self.__class__, self.evaluator, self.depth))
+    
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}(evaluator={self.evaluator}, depth={self.depth})'
 
 class MCTSNode:
     state: GameState
@@ -170,7 +202,7 @@ class MCTSAgent(Agent):
     def __init__(self, iterations: int):
         self.iterations = iterations
         
-    def get_move(self, variant: GameVariant, state: GameState) -> Move | None:
+    def get_move(self, variant: GameVariant, state: GameState):
         root = MCTSNode(variant, state, None, None)
         
         for i in range(self.iterations):
@@ -178,8 +210,11 @@ class MCTSAgent(Agent):
             result = leaf.rollout()
             leaf.backpropagate(result)
             
-        # if c_param is 0.0, it only considers the score for exploitation
-        return root.best_child(0).move
+        metrics = {
+            'total_nodes_explored': root.n,
+        }
+            
+        return root.best_child(0).move, metrics
     
     def tree_policy(self, root: MCTSNode):
         node = root
@@ -191,4 +226,16 @@ class MCTSAgent(Agent):
                 node = node.best_child()
         
         return node
+    
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, MCTSAgent):
+            return False
+        
+        return self.iterations == value.iterations
+    
+    def __hash__(self) -> int:
+        return hash((self.__class__, self.iterations))
+    
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}(iterations={self.iterations})'
     

@@ -42,6 +42,15 @@ class Evaluator:
     @abstractmethod
     def evaluate(self, variant: GameVariant, state: GameState, player: Player) -> float:
         pass
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, self.__class__)
+    
+    def __hash__(self) -> int:
+        return hash(self.__class__)
+    
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}()'
 
 class SimpleCountEvaluator(Evaluator):
     def evaluate(self, variant: GameVariant, state: GameState, player: Player):
@@ -52,8 +61,7 @@ class SimpleCountEvaluator(Evaluator):
             return black_pieces - white_pieces
         else:
             return white_pieces - black_pieces
-
-
+    
 class PositionalEvaluator(Evaluator):
     """Avalia baseado no valor das posições no tabuleiro."""
     

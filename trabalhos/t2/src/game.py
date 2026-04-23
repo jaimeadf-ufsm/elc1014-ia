@@ -8,6 +8,8 @@ from position import *
 from move import *
 
 class GameState:
+    count: int
+
     board: Board
     
     player: Player
@@ -16,8 +18,9 @@ class GameState:
     winner: Player | None
     
     def __init__(self):
-        self.player = Player.BLACK
+        self.count = 0
         self.board = Board(0)
+        self.player = Player.BLACK
         self.moves = []
         self.winner = None
     
@@ -37,7 +40,7 @@ class ClassicalGameVariant(GameVariant):
     size: int
     directions: list[Tuple[int, int]]
     
-    def __init__(self, size: int = 8):
+    def __init__(self, size: int = 6):
         self.size = size
         self.directions = [
             (-1, 0), (1, 0), (0, -1), (0, 1),
@@ -48,6 +51,8 @@ class ClassicalGameVariant(GameVariant):
         state = GameState()
         
         middle = self.size // 2 - 1
+        
+        state.count = 0
 
         state.board = Board(self.size)
         state.board = state.board.with_piece(middle, middle, Player.WHITE)
@@ -67,9 +72,10 @@ class ClassicalGameVariant(GameVariant):
         
         player = state.player
         opponent = state.player.opponent()
+
+        new_state.count = state.count + 1
         
         new_pieces = chain(move.captures, move.placements)
-        
         new_state.board = state.board.with_pieces(new_pieces, player)
         
         new_state.player = opponent
@@ -150,6 +156,8 @@ class WrapAroundGameVariant(GameVariant):
         state = GameState()
         
         middle = self.size // 2 - 1
+        
+        state.count = 0
 
         state.board = Board(self.size)
         state.board = state.board.with_piece(middle, middle, Player.WHITE)
@@ -170,8 +178,9 @@ class WrapAroundGameVariant(GameVariant):
         player = state.player
         opponent = state.player.opponent()
         
-        new_pieces = chain(move.captures, move.placements)
+        new_state.count = state.count + 1
         
+        new_pieces = chain(move.captures, move.placements)
         new_state.board = state.board.with_pieces(new_pieces, player)
         
         new_state.player = opponent

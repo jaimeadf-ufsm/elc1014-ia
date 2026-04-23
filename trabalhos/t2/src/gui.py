@@ -1,8 +1,9 @@
+import argparse
 import threading
 import pygame
 
 from agent import *
-from engine import *
+from match import *
 from game import *
 from move import *
 from player import *
@@ -10,7 +11,7 @@ from position import *
 from provider import *
 
 class GUI:
-    engine: Engine
+    matchup: Match
     provider: InputProvider
     
     mode: str
@@ -46,11 +47,11 @@ class GUI:
     
     def __init__(
         self,
-        engine: Engine,
+        engine: Match,
         provider: InputProvider,
         mode: str
     ) -> None:
-        self.engine = engine
+        self.matchup = engine
         self.provider = provider
         self.mode = mode
         
@@ -137,7 +138,7 @@ class GUI:
             self.board_rect.height
         )
 
-        self.cell_size = self.board_rect.width // self.engine.game_state.board.size
+        self.cell_size = self.board_rect.width // self.matchup.state.board.size
         self.disc_radius = max(8, int(self.cell_size * 0.36))
 
     def _process(self, event: pygame.event.Event):
@@ -158,7 +159,7 @@ class GUI:
             
             self.hovered_move = None
             
-            for move in self.engine.game_state.moves:
+            for move in self.matchup.state.moves:
                 if move.position == target:
                     self.hovered_move = move
                     break
@@ -175,7 +176,7 @@ class GUI:
         if self.mode == 'auto':
             self._start_turn_worker()
             
-        if isinstance(self.engine.get_playing_agent(), HumanAgent):
+        if isinstance(self.matchup.get_player_agent(self.matchup.state.player), HumanAgent):
             self._start_turn_worker()
             
     def _shutdown(self):
@@ -198,7 +199,7 @@ class GUI:
     def _render_board(self):
         pygame.draw.rect(self.screen, self.palette['board'], self.board_rect)
 
-        for i in range(self.engine.game_state.board.size + 1):
+        for i in range(self.matchup.state.board.size + 1):
             offset = i * self.cell_size
             
             pygame.draw.line(
@@ -218,7 +219,7 @@ class GUI:
             )
 
     def _render_discs(self):
-        board = self.engine.game_state.board
+        board = self.matchup.state.board
 
         for row in range(board.size):
             for col in range(board.size):
@@ -235,7 +236,7 @@ class GUI:
                 pygame.draw.circle(self.screen, color, (cx, cy), self.disc_radius)
 
     def _render_moves(self):
-        state = self.engine.game_state
+        state = self.matchup.state
         active_color = self._get_player_color(state.player)
 
         for move in state.moves:
@@ -257,7 +258,7 @@ class GUI:
             pygame.draw.rect(self.screen, self.palette['flip'], cell.inflate(-8, -8), width=3, border_radius=6)
 
     def _render_side_panel(self):
-        state = self.engine.game_state
+        state = self.matchup.state
         
         pygame.draw.rect(self.screen, self.palette['panel'], self.panel_rect, border_radius=12)
 
@@ -341,15 +342,19 @@ class GUI:
             self.cell_size,
         )
         
+    def _restart_game(self):
+        self._stop_turn_worker()
+        self.matchup.restart()
+    
     def _start_turn_worker(self):
         if self.worker_pending:
             return
         
-        if self.engine.game_state.is_over():
+        if self.matchup.state.is_over():
             return
         
         def worker():
-            self.engine.tick()
+            self.matchup.turn()
             self.worker_pending = False
 
         self.worker_pending = True
@@ -357,13 +362,26 @@ class GUI:
         self.worker_thread = threading.Thread(target=worker, daemon=True)
         self.worker_thread.start()
     
-    def _restart_game(self):
-        self._stop_turn_worker()
-        self.engine.restart()
-    
     def _stop_turn_worker(self):
         if self.provider.is_waiting_move():
             self.provider.answer_move(None)
         
     def _get_player_color(self, player: Player):
         return self.palette['black'] if player == Player.BLACK else self.palette['white']
+
+def execute_gui(args: Any):
+    provider = InputProvider()
+    
+    variant = ClassicalGameVariant(6)
+
+    black_agent = MinimaxAgent(AdvancedPhaseAwareEvaluator(), 7)
+    black_agent = RandomAgent()
+    white_agent = MCTSAgent(1000)
+    
+    match = Match(variant, black_agent, white_agent)
+    gui = GUI(match, provider, 'manual')
+    
+    gui.run()
+    
+def setup_gui_command(parser: argparse.ArgumentParser):
+    parser.set_defaults(func=execute_gui)
