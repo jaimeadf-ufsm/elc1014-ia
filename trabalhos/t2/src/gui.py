@@ -1,4 +1,3 @@
-import argparse
 import threading
 import pygame
 
@@ -30,7 +29,7 @@ class GUI:
     disc_radius: int
     spinner_radius: int
     
-    pallete: dict[str, pygame.color.Color]
+    palette: dict[str, pygame.color.Color]
     
     screen: pygame.surface.Surface
     clock: pygame.time.Clock
@@ -296,9 +295,13 @@ class GUI:
 
         y = self.panel_rect.bottom - 108
         
+        elapsed = self.matchup.history[-1].metrics.get('elapsed_time')
+        
         if self.worker_pending and not self.provider.is_waiting_move():
             y = self._draw_text('Thinking', self.font_small, self.palette['muted'], self.panel_rect.left + 18, y)
             self._draw_spinner(self.panel_rect.left + 120, y - 10)
+        elif elapsed is not None:
+                y = self._draw_text(f'Thought for {elapsed:.2f}s', self.font_small, self.palette['muted'], self.panel_rect.left + 18, y)
 
         if self.mode != 'auto':
             self._draw_text('<Space>: Step', self.font_small, self.palette['muted'], self.panel_rect.left + 18, self.panel_rect.bottom - 72)

@@ -2,8 +2,10 @@ from abc import abstractmethod
 from typing import Tuple
 from itertools import chain
 
+from board import Player
 from player import *
 from board import *
+from player import Player
 from position import *
 from move import *
 
@@ -30,6 +32,10 @@ class GameState:
 class GameVariant:
     @abstractmethod
     def create_game(self) -> GameState:
+        pass
+    
+    @abstractmethod
+    def continue_game(self, board: Board, player: Player) -> bool:
         pass
     
     @abstractmethod
@@ -66,7 +72,7 @@ class ClassicalGameVariant(GameVariant):
         state.winner = None
         
         return state
-    
+
     def make_move(self, state: GameState, move: Move):
         new_state = GameState()
         

@@ -21,26 +21,48 @@ class Board:
         new_board.white_pieces = self.white_pieces
         new_board.black_pieces = self.black_pieces
         
-        for pos in positions:
-            bitmask = self.piece_bitmask(pos.row, pos.col)
+        bitmask = self.mask_of(positions)
             
-            if player == Player.WHITE:
-                new_board.white_pieces |= bitmask
-                new_board.black_pieces &= ~bitmask
-            elif player == Player.BLACK:
-                new_board.black_pieces |= bitmask
-                new_board.white_pieces &= ~bitmask
+        if player == Player.WHITE:
+            new_board.white_pieces |= bitmask
+            new_board.black_pieces &= ~bitmask
+        elif player == Player.BLACK:
+            new_board.black_pieces |= bitmask
+            new_board.white_pieces &= ~bitmask
         
         return new_board
     
-    def count_pieces(self, player: Player):
+    def count_pieces(self, player: Player | None = None, positions: Iterable[Position] | Position | int | None = None):
+        bitmask = self.mask_of(positions)
+        
         if player == Player.WHITE:
-            return self.white_pieces.bit_count()
+            return (self.white_pieces & bitmask).bit_count()
+        elif player == Player.BLACK:
+            return (self.black_pieces & bitmask).bit_count()
         else:
-            return self.black_pieces.bit_count()
+            return ((self.white_pieces | self.black_pieces) & bitmask).bit_count()
+    
+    def count_empty(self, positions: Iterable[Position] | Position | int | None = None):
+        bitmask = self.mask_of(positions)
+        
+        return ((~(self.white_pieces | self.black_pieces)) & bitmask).bit_count()
 
-    def piece_bitmask(self, row: int, col: int):
-        return 1 << (row * self.size + col)
+    def mask_of(self, positions: Iterable[Position] | Position | int | None = None):
+        if positions is None:
+            return (1 << (self.size * self.size)) - 1
+
+        if isinstance(positions, Position):
+            positions = (positions,)
+        
+        if isinstance(positions, int):
+            return positions
+        
+        bitmask = 0
+        
+        for pos in positions:
+            bitmask |= 1 << (pos.row * self.size + pos.col)
+        
+        return bitmask
     
     def __getitem__(self, key: tuple[int, int]):
         row, col = key
@@ -51,7 +73,7 @@ class Board:
         if col < 0 or col >= self.size:
             return None
         
-        bitmask = self.piece_bitmask(row, col)
+        bitmask = self.mask_of(Position(row, col))
         
         if self.white_pieces & bitmask != 0:
             return Player.WHITE

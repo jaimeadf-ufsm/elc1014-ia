@@ -6,7 +6,6 @@ from study import *
     
 def play_match(match: Match):
     match.play()
-
     return match
     
 def generate_matchups_across_minimax_depth(variant: GameVariant, opponent: MCTSAgent, evaluator: Evaluator, depths: Iterable[int], n: int = 50):
@@ -46,6 +45,15 @@ SIMULATE_VARIANTS = {
 }
 
 SIMULATE_GENERATORS = {
+    'standard_minimax_diego_7_vs_mcts_1000':(
+        lambda variant, matches:
+            generate_matchup(
+                variant,
+                MinimaxAgent(DIEGO_EVALUATOR, 7),
+                MCTSAgent(1000),
+                matches
+            )
+    ),
     'randomized_mcts_1000_vs_mcts_1000':(
         lambda variant, matches:
             generate_randomized_matchups(
@@ -79,7 +87,11 @@ def simulate(args: Any):
     matches = generator(variant, n)
     matches = list(matches)
     
-    matches = tqdm.contrib.concurrent.process_map(play_match, matches, max_workers=workers)
+    matches = tqdm.contrib.concurrent.process_map(
+        play_match,
+        matches,
+        max_workers=workers
+    )
     
     study = Study(matches)
     

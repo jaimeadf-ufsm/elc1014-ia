@@ -1,3 +1,7 @@
+tqdm
+psutil
 pygame
-PyOpenGL
-PyOpenGL_accelerate
+pandas
+numpy
+matplotlib
+seaborn

@@ -7,11 +7,11 @@ def view(args: Any):
     
     variant = ClassicalGameVariant(6)
 
-    black_agent = MinimaxAgent(AdvancedPhaseAwareEvaluator(), 7)
-    black_agent = RandomAgent()
+    black_agent = MinimaxAgent(DIEGO_EVALUATOR, 7)
     white_agent = MCTSAgent(1000)
     
     match = Match(variant, black_agent, white_agent)
+    
     gui = GUI(match, provider, 'manual')
     
     gui.run()
