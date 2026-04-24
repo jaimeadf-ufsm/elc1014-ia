@@ -47,7 +47,7 @@ class MinimaxAgent(Agent):
             'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth) }
         }
         
-        score, move = self.minimax(variant, state, self.depth, float('-inf'), float('inf'), metrics)
+        score, move = self.minimax(variant, state, state.player, self.depth, float('-inf'), float('inf'), metrics)
         assert move is not None
         
         metrics['total_nodes_explored'] = sum(depth_metrics['nodes_explored'] for depth_metrics in metrics['by_depth'].values())
@@ -55,11 +55,11 @@ class MinimaxAgent(Agent):
         
         return move, metrics
         
-    def minimax(self, variant: GameVariant, state: GameState, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
+    def minimax(self, variant: GameVariant, state: GameState, player: Player, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
         if depth == 0 or state.is_over():
-            return self.evaluator.evaluate(variant, state), None
+            return self.evaluator.evaluate(variant, state, player), None
         
-        maximizing = state.player == Player.BLACK
+        maximizing = state.player == player
         
         if maximizing:
             max_score = float('-inf')
@@ -69,7 +69,7 @@ class MinimaxAgent(Agent):
                 metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
 
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
+                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
                 
                 if next_score >= max_score:
                     max_score = next_score
@@ -89,7 +89,7 @@ class MinimaxAgent(Agent):
             for i, move in enumerate(state.moves):
                 metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
+                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
                 
                 if next_score <= min_score:
                     min_score = next_score

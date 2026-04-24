@@ -10,20 +10,17 @@ class Evaluator:
     def n(self) -> int:
         return len(self.weights())
     
-    # Evaluates the game always from the perspective of BLACK
-    # bigger = good for BLACK
-    # smaller = good for WHITE
-    def evaluate(self, variant: GameVariant, state: GameState) -> float:
-        if state.is_over():
-            if state.winner == Player.BLACK:
+    def evaluate(self, variant: GameVariant, state: GameState, player: Player) -> float:
+        if state.is_over() and state.winner is not None:
+            if state.winner == player:
                 return float('inf')
-            elif state.winner == Player.WHITE:
+            else:
                 return float('-inf')
         
-        return (self.weights() * self.params(variant, state)).sum()
+        return (self.weights() * self.params(variant, state, player)).sum()
 
     @abstractmethod
-    def params(self, variant: GameVariant, state: GameState) -> np.ndarray:
+    def params(self, variant: GameVariant, state: GameState, player: Player) -> np.ndarray:
         pass
     
     @abstractmethod
@@ -56,11 +53,11 @@ class CountEvaluator(IndependentEvaluator):
     def __init__(self, scale: float = 1.0):
         super().__init__(np.array([scale]))
     
-    def params(self, variant: GameVariant, state: GameState):
-        black_pieces = state.board.count_pieces(Player.BLACK)
-        white_pieces = state.board.count_pieces(Player.WHITE)
+    def params(self, variant: GameVariant, state: GameState, player: Player):
+        player_pieces = state.board.count_pieces(player)
+        opponent_pieces = state.board.count_pieces(player.opponent())
         
-        count = black_pieces - white_pieces
+        count = player_pieces - opponent_pieces
         ratio = count / (state.board.size * state.board.size)
         
         return np.array((ratio,))
@@ -91,17 +88,19 @@ class PositionalEvaluator(IndependentEvaluator):
             for col, index in enumerate(indices):
                 self.labels[index] |= (1 << (row * 6 + col))
             
-    def params(self, variant: GameVariant, state: GameState):
+    def params(self, variant: GameVariant, state: GameState, player: Player):
         params = np.zeros(6)
         
+        player = player
+        opponent = player.opponent()
+        
         for i, positions in enumerate(self.labels):
-            black_count = state.board.count_pieces(Player.BLACK, positions)
-            white_count = state.board.count_pieces(Player.WHITE, positions)
+            player_pieces = state.board.count_pieces(player, positions)
+            opponent_pieces = state.board.count_pieces(opponent, positions)
             
-            params[i] = (black_count - white_count) / positions.bit_count()
+            params[i] = (player_pieces - opponent_pieces) / positions.bit_count()
         
         return params
-
 
 class PotentialMobilityEvaluator(IndependentEvaluator):
     directions: list[tuple[int, int]]
@@ -113,11 +112,11 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
             (-1, -1), (-1, 1), (1, -1), (1, 1) 
         ]
     
-    def params(self, variant: GameVariant, state: GameState):
-        black_frontier = self.compute_frontier_pieces(variant, state, Player.BLACK)
-        white_frontier = self.compute_frontier_pieces(variant, state, Player.WHITE)
+    def params(self, variant: GameVariant, state: GameState, player: Player):
+        player_frontier = self.compute_frontier_pieces(variant, state, player)
+        opponent_frontier = self.compute_frontier_pieces(variant, state, player.opponent())
         
-        score = (white_frontier - black_frontier) / (state.board.size * state.board.size)
+        score = (opponent_frontier - player_frontier) / (state.board.size * state.board.size)
         
         return np.array([score])
     
@@ -146,24 +145,17 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
         
         return frontier_pieces
 
-class ParityEvaluator(IndependentEvaluator):
-    def __init__(self, scale: float = 1.0):
-        super().__init__(scale * np.array([1.0]))
-    
-    def params(self, variant: GameVariant, state: GameState):
-        return np.array([1.0 if state.count % 2 == 0 else -1.0])
-
 class CompoundEvaluator(Evaluator):
     evaluators: list[Evaluator]
     
     def __init__(self, evaluators: list[Evaluator]):
         self.evaluators = evaluators
     
-    def evaluate(self, variant: GameVariant, state: GameState) -> float:
-        return sum(e.evaluate(variant, state) for e in self.evaluators)
+    def evaluate(self, variant: GameVariant, state: GameState, player: Player):
+        return sum(e.evaluate(variant, state, player) for e in self.evaluators)
     
-    def params(self, variant: GameVariant, state: GameState):
-        return np.concatenate([e.params(variant, state) for e in self.evaluators])
+    def params(self, variant: GameVariant, state: GameState, player: Player):
+        return np.concatenate([e.params(variant, state, player) for e in self.evaluators])
     
     def weights(self, values: np.ndarray | None = None):
         if values is not None:
@@ -185,7 +177,7 @@ class PhaseAwareEvaluator(Evaluator):
         super().__init__()
         self.evaluators = [opening_evaluator, midgame_evaluator, endgame_evaluator]
     
-    def params(self, variant: GameVariant, state: GameState):
+    def params(self, variant: GameVariant, state: GameState, player: Player):
         phase = self.identify_phase(state)
         components = []
         
@@ -193,7 +185,7 @@ class PhaseAwareEvaluator(Evaluator):
             if scalar == 0:
                 components.append(np.zeros(e.n))
             else:
-                components.append(scalar * e.params(variant, state))
+                components.append(scalar * e.params(variant, state, player))
         
         return np.concatenate(components)
     
@@ -234,7 +226,6 @@ DIEGO_EVALUATOR = PhaseAwareEvaluator(
     endgame_evaluator=CompoundEvaluator([
         CountEvaluator(0.7),
         PositionalEvaluator(0.2),
-        PotentialMobilityEvaluator(0.1),
-        ParityEvaluator(0.1)
+        PotentialMobilityEvaluator(0.1)
     ])
 )
