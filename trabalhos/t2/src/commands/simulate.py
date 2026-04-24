@@ -18,13 +18,13 @@ def generate_matchups_across_minimax_depth(variant: GameVariant, opponent: MCTSA
         for match in matches:
             yield match
 
-def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_two: Agent, n: int):
+def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_two: Agent, n: int, steps: tuple[int, int] = (0, 8)):
     matches = generate_matchup(variant, agent_one, agent_two, n)
     
     for match in matches:
         state = variant.create_game()
         
-        for _ in range(random.randint(4, 6)):
+        for _ in range(random.randint(*steps)):
             move = random.choice(state.moves)
             state = variant.make_move(state, move)
             
@@ -44,7 +44,7 @@ SIMULATE_VARIANTS = {
     'wrap_around': WrapAroundGameVariant()
 }
 
-SIMULATE_GENERATORS = {
+SIMULATE_PRESETS = {
     'standard_minimax_diego_7_vs_mcts_1000':(
         lambda variant, matches:
             generate_matchup(
@@ -71,6 +71,15 @@ SIMULATE_GENERATORS = {
                 MCTSAgent(10000),
                 matches
             )
+    ),
+    'randomized_mcts_25000_vs_mcts_25000':(
+        lambda variant, matches:
+            generate_randomized_matchups(
+                variant,
+                MCTSAgent(25000),
+                MCTSAgent(25000),
+                matches
+            )
     )
 }
 
@@ -79,12 +88,12 @@ def simulate(args: Any):
     workers = args.workers
     output = args.output
     variant = SIMULATE_VARIANTS[args.variant]
-    generator = SIMULATE_GENERATORS[args.generator]
+    preset = SIMULATE_PRESETS[args.preset]
     
     if output.is_dir():
         output = output / f'{args.generator}.pkl'
     
-    matches = generator(variant, n)
+    matches = preset(variant, n)
     matches = list(matches)
     
     matches = tqdm.contrib.concurrent.process_map(

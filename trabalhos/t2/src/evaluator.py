@@ -1,11 +1,13 @@
-from typing import Any
-
 import numpy as np
 
 from game import *
-from game import GameState, GameVariant
 
 class Evaluator:
+    name: str | None
+    
+    def __init__(self, name: str | None = None):
+        self.name = name
+    
     @property
     def n(self) -> int:
         return len(self.weights())
@@ -34,10 +36,14 @@ class Evaluator:
         return hash(self.__class__)
     
     def __str__(self) -> str:
+        if self.name is not None:
+            return f'{self.__class__.__name__}(name="{self.name}")'
+        
         return f'{self.__class__.__name__}()'
 
 class IndependentEvaluator(Evaluator):
-    def __init__(self, w: np.ndarray):
+    def __init__(self, w: np.ndarray, name: str | None = None):
+        super().__init__(name)
         self.w = w
     
     def weights(self, values: np.ndarray | None = None) -> np.ndarray:
@@ -47,11 +53,17 @@ class IndependentEvaluator(Evaluator):
         return self.w
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}(w={self.w})'
+        if self.name is not None:
+            return super().__str__()
+        
+        return f'{self.__class__.__name__}(w=[{", ".join(f"{weight}" for weight in self.w)}])'
 
 class CountEvaluator(IndependentEvaluator):
-    def __init__(self, scale: float = 1.0):
-        super().__init__(np.array([scale]))
+    def __init__(self, w: np.ndarray | None = None, scale: float = 1.0, name: str | None = None):
+        if w is None:
+            w = np.array([scale])
+        
+        super().__init__(scale * w, name)
     
     def params(self, variant: GameVariant, state: GameState, player: Player):
         player_pieces = state.board.count_pieces(player)
@@ -63,8 +75,14 @@ class CountEvaluator(IndependentEvaluator):
         return np.array((ratio,))
 
 class PositionalEvaluator(IndependentEvaluator):
-    def __init__(self, scale: float = 1.0):
-        super().__init__(scale * np.array([1, -0.25, -0.50, 0.10, 0.05, 0.01]))
+    def __init__(self, w: np.ndarray | None = None, scale: float = 1.0, uniform: bool = False, name: str | None = None):
+        if w is None:
+            if uniform:
+                w = np.ones(6)
+            else:
+                w = np.array([1, -0.25, -0.50, 0.10, 0.05, 0.01, -1, 0.25, 0.50, -0.10, -0.05, -0.01])
+
+        super().__init__(scale * w, name)
         
         #   0  1  2  3  4  5
         # 0 Q  C  A  A  C  Q
@@ -89,7 +107,8 @@ class PositionalEvaluator(IndependentEvaluator):
                 self.labels[index] |= (1 << (row * 6 + col))
             
     def params(self, variant: GameVariant, state: GameState, player: Player):
-        params = np.zeros(6)
+        n = len(self.labels)
+        params = np.zeros(2 * len(self.labels))
         
         player = player
         opponent = player.opponent()
@@ -98,15 +117,20 @@ class PositionalEvaluator(IndependentEvaluator):
             player_pieces = state.board.count_pieces(player, positions)
             opponent_pieces = state.board.count_pieces(opponent, positions)
             
-            params[i] = (player_pieces - opponent_pieces) / positions.bit_count()
+            params[i] = player_pieces / positions.bit_count()
+            params[i + n] = opponent_pieces / positions.bit_count()
         
         return params
 
 class PotentialMobilityEvaluator(IndependentEvaluator):
     directions: list[tuple[int, int]]
     
-    def __init__(self, scale: float = 1.0):
-        super().__init__(scale * np.array([1.0]))
+    def __init__(self, w: np.ndarray | None = None, scale: float = 1.0, name: str | None = None):
+        if w is None:
+            w = np.array([1.0])
+        
+        super().__init__(scale * w, name)
+        
         self.directions = [
             (-1, 0), (1, 0), (0, -1), (0, 1),
             (-1, -1), (-1, 1), (1, -1), (1, 1) 
@@ -145,10 +169,28 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
         
         return frontier_pieces
 
-class CompoundEvaluator(Evaluator):
+class ParityEvaluator(IndependentEvaluator):
+    def __init__(self, scale: float = 1.0, name: str | None = None):
+        super().__init__(np.array([scale]), name)
+    
+    def params(self, variant: GameVariant, state: GameState, player: Player):
+        # Count empty squares on the board
+        empty_squares = state.board.count_empty()
+        
+        # Parity heuristic: if empty squares is odd, current player makes the last move
+        # If even, opponent makes the last move
+        if empty_squares % 2 == 1:
+            parity_score = 1.0  # current player makes the last move (advantage)
+        else:
+            parity_score = -1.0  # opponent makes the last move (disadvantage)
+        
+        return np.array((parity_score,))
+
+class CompositeEvaluator(Evaluator):
     evaluators: list[Evaluator]
     
-    def __init__(self, evaluators: list[Evaluator]):
+    def __init__(self, evaluators: list[Evaluator], name: str | None = None):
+        super().__init__(name)
         self.evaluators = evaluators
     
     def evaluate(self, variant: GameVariant, state: GameState, player: Player):
@@ -168,14 +210,17 @@ class CompoundEvaluator(Evaluator):
         return np.concatenate([e.weights() for e in self.evaluators])
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}({", ".join(str(e) for e in self.evaluators)})'
+        if self.name is not None:
+            return super().__str__()
+        
+        return f'{self.__class__.__name__}([{", ".join(str(e) for e in self.evaluators)}])'
 
 class PhaseAwareEvaluator(Evaluator):
     evaluators: list[Evaluator]
         
-    def __init__(self, opening_evaluator: Evaluator, midgame_evaluator: Evaluator, endgame_evaluator: Evaluator):
+    def __init__(self, opening: Evaluator, midgame: Evaluator, endgame: Evaluator):
         super().__init__()
-        self.evaluators = [opening_evaluator, midgame_evaluator, endgame_evaluator]
+        self.evaluators = [opening, midgame, endgame]
     
     def params(self, variant: GameVariant, state: GameState, player: Player):
         phase = self.identify_phase(state)
@@ -210,22 +255,25 @@ class PhaseAwareEvaluator(Evaluator):
             return (0, 0, 1)
         
     def __str__(self) -> str:
+        if self.name is not None:
+            return super().__str__()
+        
         return f'{self.__class__.__name__}({", ".join(str(e) for e in self.evaluators)})'
 
 DIEGO_EVALUATOR = PhaseAwareEvaluator(
-    opening_evaluator=CompoundEvaluator([
-        PositionalEvaluator(0.4),
-        CountEvaluator(0.2),
-        PotentialMobilityEvaluator(0.2)
+    opening=CompositeEvaluator([
+        PositionalEvaluator(scale=0.4),
+        CountEvaluator(scale=0.2),
+        PotentialMobilityEvaluator(scale=0.2)
     ]),
-    midgame_evaluator=CompoundEvaluator([
-        PositionalEvaluator(0.3),
-        CountEvaluator(0.4),
-        PotentialMobilityEvaluator(0.2)
+    midgame=CompositeEvaluator([
+        PositionalEvaluator(scale=0.3),
+        CountEvaluator(scale=0.4),
+        PotentialMobilityEvaluator(scale=0.2)
     ]),
-    endgame_evaluator=CompoundEvaluator([
-        CountEvaluator(0.7),
-        PositionalEvaluator(0.2),
-        PotentialMobilityEvaluator(0.1)
+    endgame=CompositeEvaluator([
+        CountEvaluator(scale=0.7),
+        PositionalEvaluator(scale=0.2),
+        PotentialMobilityEvaluator(scale=0.1)
     ])
 )

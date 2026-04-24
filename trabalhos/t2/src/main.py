@@ -1,5 +1,4 @@
 import argparse
-import psutil
 
 from game import *
 from agent import *
@@ -8,6 +7,7 @@ from match import *
 from commands.view import *
 from commands.simulate import *
 from commands.analyze import *
+from commands.learn import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -18,10 +18,10 @@ if __name__ == '__main__':
     
     simulate_parser = subparsers.add_parser('simulate')
     simulate_parser.add_argument('--matches', '-n', type=int, default=50)
-    simulate_parser.add_argument('--workers', '-w', type=int, default=psutil.cpu_count(logical=False))
+    simulate_parser.add_argument('--workers', '-w', type=int, default=8)
     simulate_parser.add_argument('--output', '-o', type=pathlib.Path, default=pathlib.Path('simulations'))
     simulate_parser.add_argument('variant', choices=SIMULATE_VARIANTS.keys())
-    simulate_parser.add_argument('generator', choices=SIMULATE_GENERATORS.keys())
+    simulate_parser.add_argument('preset', choices=SIMULATE_PRESETS.keys())
     simulate_parser.set_defaults(func=simulate)
     
     analyze_parser = subparsers.add_parser('analyze')
@@ -29,6 +29,11 @@ if __name__ == '__main__':
     analyze_parser.add_argument('input', type=pathlib.Path)
     analyze_parser.add_argument('pipeline', choices=ANALYZE_PIPELINES.keys())
     analyze_parser.set_defaults(func=analyze)
+    
+    learn_parser = subparsers.add_parser('learn')
+    learn_parser.add_argument('--iterations', '-i', type=int, default=10000)
+    learn_parser.add_argument('input', type=pathlib.Path)
+    learn_parser.set_defaults(func=learn)
   
     args = parser.parse_args()
     args.func(args)

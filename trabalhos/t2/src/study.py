@@ -37,5 +37,7 @@ class Study:
                 if file.suffix == '.pkl':
                     study.extend(Study.load(file))
             
+            return study
+            
         with open(path, 'rb') as f:
             return pickle.load(f)
