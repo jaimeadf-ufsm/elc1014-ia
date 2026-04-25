@@ -128,7 +128,7 @@ class MCTSNode:
     move: Move | None
 
     n: int
-    r: dict[Player | None, int]
+    q: float
 
     parent: Self | None
     children: list['MCTSNode']
@@ -142,24 +142,12 @@ class MCTSNode:
         self.move = move
         
         self.n = 0
-        self.r = {
-            Player.WHITE: 0,
-            Player.BLACK: 0,
-            None: 0
-        }
+        self.q = 0.0
         
         self.parent = parent
         self.children = []
         
         self.untried_moves = state.moves.copy()
-
-    def q(self):
-        assert self.parent is not None
-        
-        wins = self.r[self.parent.state.player]
-        losses = self.r[self.parent.state.player.opponent()]
-        
-        return wins - losses
 
     def expand(self):
         next_move = self.untried_moves.pop()
@@ -187,6 +175,11 @@ class MCTSNode:
         self.n += 1
         
         if self.parent:
+            if result == self.parent.state.player:
+                self.q += 1
+            elif result == self.parent.state.player.opponent():
+                self.q -= 1
+            
             self.parent.backpropagate(result)
     
     def best_child(self, c):
@@ -194,7 +187,7 @@ class MCTSNode:
         best_child = self.children[0]
         
         for child in self.children:
-            uct = child.q() / child.n
+            uct = child.q / child.n
             uct += c * math.sqrt(math.log(self.n) / child.n)
             
             if uct > best_uct:
@@ -211,7 +204,7 @@ class MCTSNode:
             
 class MCTSAgent(Agent):
     iterations: int
-    c: float
+    c: float = 1.4
     
     def __init__(self, iterations: int, c: float = 1.4):
         self.iterations = iterations
