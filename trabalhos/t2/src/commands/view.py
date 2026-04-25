@@ -7,7 +7,7 @@ def view(args: Any):
     
     variant = ClassicalGameVariant(6)
 
-    black_agent = MinimaxAgent(DIEGO_EVALUATOR, 7)
+    black_agent = MCTSAgent(1000)
     white_agent = MCTSAgent(1000)
     
     match = Match(variant, black_agent, white_agent)

@@ -24,8 +24,8 @@ def general_pipeline(args: Any):
         )
         
         color_rows.append({
-            'black_agent': black_agent,
-            'white_agent': white_agent,
+            'black_agent': repr(black_agent),
+            'white_agent': repr(white_agent),
             'black_win_rate': round(black_wr, 2),
             'black_avg_time': round(black_avg_time, 3),
             'black_wins': black_wins,
@@ -63,8 +63,8 @@ def general_pipeline(args: Any):
         opponent_metrics = compute_player_metrics(opponent_stats)
         
         agent_rows.append({
-            'player_agent': player_agent,
-            'opponent_agent': opponent_agent,
+            'player_agent': repr(player_agent),
+            'opponent_agent': repr(opponent_agent),
             'player_win_rate': round(player_metrics[0], 2),
             'player_avg_time': round(player_metrics[1], 3),
             'player_wins': player_metrics[2],

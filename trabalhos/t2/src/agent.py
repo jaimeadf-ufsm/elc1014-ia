@@ -20,6 +20,9 @@ class Agent:
     
     def __str__(self) -> str:
         return f'{self.__class__.__name__}()'
+    
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class RandomAgent(Agent):
     def get_move(self, variant: GameVariant, state: GameState):
@@ -47,7 +50,7 @@ class MinimaxAgent(Agent):
             'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth) }
         }
         
-        score, move = self.minimax(variant, state, state.player, self.depth, float('-inf'), float('inf'), metrics)
+        score, move = self.minimax(variant, state, self.depth, float('-inf'), float('inf'), metrics)
         assert move is not None
         
         metrics['total_nodes_explored'] = sum(depth_metrics['nodes_explored'] for depth_metrics in metrics['by_depth'].values())
@@ -55,11 +58,11 @@ class MinimaxAgent(Agent):
         
         return move, metrics
         
-    def minimax(self, variant: GameVariant, state: GameState, player: Player, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
+    def minimax(self, variant: GameVariant, state: GameState, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
         if depth == 0 or state.is_over():
-            return self.evaluator.evaluate(variant, state, player), None
+            return self.evaluator.evaluate(variant, state), None
         
-        maximizing = state.player == player
+        maximizing = state.player == Player.WHITE
         
         if maximizing:
             max_score = float('-inf')
@@ -69,7 +72,7 @@ class MinimaxAgent(Agent):
                 metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
 
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
+                next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
                 if next_score >= max_score:
                     max_score = next_score
@@ -89,7 +92,7 @@ class MinimaxAgent(Agent):
             for i, move in enumerate(state.moves):
                 metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
                 next_state = variant.make_move(state, move)
-                next_score, _ = self.minimax(variant, next_state, player, depth - 1, alpha, beta, metrics)
+                next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
                 if next_score <= min_score:
                     min_score = next_score
@@ -114,6 +117,9 @@ class MinimaxAgent(Agent):
     
     def __str__(self) -> str:
         return f'{self.__class__.__name__}(evaluator={self.evaluator}, depth={self.depth})'
+    
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(evaluator={repr(self.evaluator)}, depth={self.depth})'
 
 class MCTSNode:
     state: GameState
@@ -121,8 +127,8 @@ class MCTSNode:
     
     move: Move | None
 
-    q: int
     n: int
+    r: dict[Player | None, int]
 
     parent: Self | None
     children: list['MCTSNode']
@@ -135,13 +141,25 @@ class MCTSNode:
         
         self.move = move
         
-        self.q = 0
         self.n = 0
+        self.r = {
+            Player.WHITE: 0,
+            Player.BLACK: 0,
+            None: 0
+        }
         
         self.parent = parent
         self.children = []
         
         self.untried_moves = state.moves.copy()
+
+    def q(self):
+        assert self.parent is not None
+        
+        wins = self.r[self.parent.state.player]
+        losses = self.r[self.parent.state.player.opponent()]
+        
+        return wins - losses
 
     def expand(self):
         next_move = self.untried_moves.pop()
@@ -166,22 +184,17 @@ class MCTSNode:
         return random.choice(state.moves)
 
     def backpropagate(self, result: Player | None):
-        if result == self.state.player.opponent():
-            self.q += 1
-        elif result == self.state.player:
-            self.q -= 1
-            
         self.n += 1
         
         if self.parent:
             self.parent.backpropagate(result)
     
-    def best_child(self, c=1.4):
+    def best_child(self, c):
         best_uct = float('-inf')
         best_child = self.children[0]
         
         for child in self.children:
-            uct = child.q / child.n
+            uct = child.q() / child.n
             uct += c * math.sqrt(math.log(self.n) / child.n)
             
             if uct > best_uct:
@@ -198,9 +211,11 @@ class MCTSNode:
             
 class MCTSAgent(Agent):
     iterations: int
+    c: float
     
-    def __init__(self, iterations: int):
+    def __init__(self, iterations: int, c: float = 1.4):
         self.iterations = iterations
+        self.c = c
         
     def get_move(self, variant: GameVariant, state: GameState):
         root = MCTSNode(variant, state, None, None)
@@ -223,7 +238,7 @@ class MCTSAgent(Agent):
             if not node.is_fully_expanded():
                 return node.expand()
             else:
-                node = node.best_child()
+                node = node.best_child(self.c)
         
         return node
     
@@ -231,11 +246,11 @@ class MCTSAgent(Agent):
         if not isinstance(value, MCTSAgent):
             return False
         
-        return self.iterations == value.iterations
+        return self.iterations == value.iterations and self.c == value.c
     
     def __hash__(self) -> int:
-        return hash((self.__class__, self.iterations))
+        return hash((self.__class__, self.iterations, self.c))
     
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}(iterations={self.iterations})'
+        return f'{self.__class__.__name__}(iterations={self.iterations}, c={self.c})'
     

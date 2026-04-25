@@ -33,6 +33,7 @@ if __name__ == '__main__':
     learn_parser = subparsers.add_parser('learn')
     learn_parser.add_argument('--iterations', '-i', type=int, default=10000)
     learn_parser.add_argument('input', type=pathlib.Path)
+    learn_parser.add_argument('goal', choices=LEARN_GOALS.keys())
     learn_parser.set_defaults(func=learn)
   
     args = parser.parse_args()

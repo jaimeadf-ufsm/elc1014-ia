@@ -2,14 +2,71 @@ from typing import Any
 from collections import Counter
 import random
 
+
 from study import *
 from evaluator import *
 
-def learn(args: Any):
+def tune_for_win(study: Study, evaluator: Evaluator, iterations: int):
     from sklearn.linear_model import LogisticRegression
     
+    X = []
+    y = []
+    
+    for match in study:
+        winner = match.state.winner
+        
+        if winner == None:
+            continue
+        
+        for turn in match.history[:-1]:
+            features = evaluator.params(match.variant, turn.state)
+            
+            X.append(features)
+            y.append(winner == Player.WHITE)
+    
+    X = np.array(X)
+    y = np.array(y)
+    
+    model = LogisticRegression(max_iter=iterations, fit_intercept=False)
+    model.fit(X, y)
+    
+    evaluator.weights(model.coef_[0])
+
+def tune_for_score(study: Study, evaluator: Evaluator, iterations: int):
+    from sklearn.linear_model import LinearRegression
+    
+    X = []
+    y = []
+    
+    for match in study:
+        white_pieces = match.state.board.count_pieces(Player.WHITE)
+        black_pieces = match.state.board.count_pieces(Player.BLACK)
+        
+        score = white_pieces - black_pieces
+        
+        for turn in match.history[:-1]:
+            features = evaluator.params(match.variant, turn.state)
+            
+            X.append(features)
+            y.append(score)
+    
+    X = np.array(X)
+    y = np.array(y)
+    
+    model = LinearRegression(fit_intercept=False)
+    model.fit(X, y)
+    
+    evaluator.weights(model.coef_)
+    
+LEARN_GOALS = {
+    'win': tune_for_win,
+    'score': tune_for_score
+}
+
+def learn(args: Any):
     input_path = args.input
     iterations = args.iterations
+    tune = LEARN_GOALS[args.goal]
     
     study = Study.load(input_path)
     
@@ -34,61 +91,23 @@ def learn(args: Any):
         ])
     )
     
-    X = []
-    y = []
-    
-    for match in study:
-        winner = match.state.winner
-        
-        if winner == None:
-            continue
-        
-        for turn in match.history[:-1]:
-            for player in (Player.BLACK,):
-                features = evaluator.params(match.variant, turn.state, player)
-                
-                X.append(features)
-                y.append(classify_outcome(winner, player))
-    
-    print(f'Collected {len(X)} training samples')
-    print('Class distribution:', Counter(y))
-            
-    X = np.array(X)
-    y = np.array(y)
-    
-    model = LogisticRegression(max_iter=iterations, fit_intercept=False)
-    model.fit(X, y)
-    
-    print('Learned coefficients:', model.coef_)
-    print('Learned intercept:', model.intercept_)
-    
-    evaluator.weights(model.coef_[0])
+    tune(study, evaluator, iterations)
     
     for i, match in enumerate(random.choices(study.matches, k=20)):
+        white_pieces = match.state.board.count_pieces(Player.WHITE)
+        black_pieces = match.state.board.count_pieces(Player.BLACK)
+        
+        score = white_pieces - black_pieces
+        
         print(f'Match {i + 1}:')
         print(f'  Winner: {match.state.winner}')
-        print(f'  Score: {match.state.board.count_pieces(Player.BLACK)} - {match.state.board.count_pieces(Player.WHITE)}')
+        print(f'  Score: W{white_pieces} - B{black_pieces} = {score}')
         print(f'  Turns:')
         
         for j, turn in enumerate(match.history[1:]):
-            player = match.history[j].state.player
-            
-            black_score = evaluator.evaluate(match.variant, turn.state, Player.BLACK)
-            white_score = evaluator.evaluate(match.variant, turn.state, Player.WHITE)
-            
-            black_score = 1 / (1 + np.exp(-black_score))
-            white_score = 1 / (1 + np.exp(-white_score))
-            
-            print(f'    {turn.state.count:02d} {turn.state.player:>6}: B: {black_score:.4f}, W: {white_score:.4f}')
+            score = evaluator.evaluate(match.variant, turn.state)
+            print(f'    {turn.state.count:02d} {turn.state.player:>6}: {score}')
         
         print()
         
     print(evaluator)
-
-def classify_outcome(winner: Player | None, player: Player):
-    if winner is None:
-        return 0
-    elif winner == player:
-        return 1
-    else:
-        return -1

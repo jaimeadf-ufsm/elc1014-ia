@@ -45,12 +45,23 @@ SIMULATE_VARIANTS = {
 }
 
 SIMULATE_PRESETS = {
-    'standard_minimax_diego_7_vs_mcts_1000':(
+    'standard_minimax_cste1_sweep_vs_mcts_1000':(
         lambda variant, matches:
-            generate_matchup(
+            generate_matchups_across_minimax_depth(
                 variant,
-                MinimaxAgent(DIEGO_EVALUATOR, 7),
                 MCTSAgent(1000),
+                CLASSICAL_SCORE_TUNED_EVALUATOR,
+                range(1, 9),
+                matches
+            )
+    ),
+    'standard_minimax_cwte1_sweep_vs_mcts_1000':(
+        lambda variant, matches:
+            generate_matchups_across_minimax_depth(
+                variant,
+                MCTSAgent(1000),
+                CLASSICAL_WIN_TUNED_EVALUATOR,
+                range(1, 9),
                 matches
             )
     ),
