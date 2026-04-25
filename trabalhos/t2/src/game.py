@@ -151,7 +151,7 @@ class WrapAroundGameVariant(GameVariant):
     size: int
     directions: list[Tuple[int, int]]
     
-    def __init__(self, size: int = 8):
+    def __init__(self, size: int = 6):
         self.size = size
         self.directions = [
             (-1, 0), (1, 0), (0, -1), (0, 1),
