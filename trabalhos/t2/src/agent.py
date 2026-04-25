@@ -7,6 +7,7 @@ from game import *
 from evaluator import *
 from provider import *
 
+# Classe base para agentes que escolhem jogadas.
 class Agent:
     @abstractmethod
     def get_move(self, variant: GameVariant, state: GameState) -> tuple[Move | None, dict[str, Any]]:
@@ -24,10 +25,19 @@ class Agent:
     def __repr__(self) -> str:
         return self.__str__()
 
+# Agente que escolhe uma jogada legal ao acaso.
+#
+# Serve como referência simples de desempenho e também como fonte de partidas
+# variadas em simulações.
 class RandomAgent(Agent):
     def get_move(self, variant: GameVariant, state: GameState):
         return random.choice(state.moves), {}
     
+# Agente controlado por humano.
+#
+# Delega a escolha a um InputProvider (GUI/CLI), bloqueando até que alguém
+# informe a jogada. Isso permite que a mesma infraestrutura de partida seja
+# usada de forma interativa.
 class HumanAgent(Agent):
     provider: InputProvider
     
@@ -37,6 +47,16 @@ class HumanAgent(Agent):
     def get_move(self, variant: GameVariant, state: GameState):
         return self.provider.request_move(variant, state), {}
 
+# Agente minimax com poda alfa-beta.
+#
+# Explora a árvore de jogo até uma profundidade fixa e usa um Evaluator para
+# pontuar estados folha. Como os avaliadores do projeto são definidos do ponto
+# de vista das brancas, este agente trata:
+#   - brancas como jogador maximizador;
+#   - pretas como jogador minimizador.
+#
+# Além do movimento escolhido, retorna métricas da busca (nós explorados e
+# podados por profundidade), úteis para comparar configurações e agentes.
 class MinimaxAgent(Agent):
     evaluator: Evaluator
     depth: int
@@ -121,6 +141,19 @@ class MinimaxAgent(Agent):
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(evaluator={repr(self.evaluator)}, depth={self.depth})'
 
+# Nó de busca do Monte Carlo Tree Search (MCTS).
+#
+# Cada nó guarda um estado do jogo associado a uma jogada (move) e mantém
+# estatísticas acumuladas ao longo das simulações:
+#   - n: número de visitas;
+#   - q: valor acumulado, atualizado na retropropagação a partir do resultado
+#        do rollout, do ponto de vista do jogador que realizou a jogada que
+#        leva a este nó (ou seja, o jogador do estado do pai).
+#
+# Também encapsula as operações centrais do algoritmo:
+#   - expansão de um movimento ainda não tentado;
+#   - simulação (rollout) até o fim da partida;
+#   - seleção de filhos via UCT.
 class MCTSNode:
     state: GameState
     variant: GameVariant
@@ -202,6 +235,13 @@ class MCTSNode:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
             
+# Agente baseado em Monte Carlo Tree Search (MCTS) com seleção UCT.
+#
+# Executa um número fixo de iterações (seleção/expansão/rollout/
+# retropropagação) a partir do estado atual e escolhe a jogada do filho mais
+# promissor na raiz (explotação no final).
+#
+# Retorna também métricas agregadas da busca para apoiar análises.
 class MCTSAgent(Agent):
     iterations: int
     c: float = 1.4

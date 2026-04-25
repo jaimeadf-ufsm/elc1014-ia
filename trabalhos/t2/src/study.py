@@ -3,6 +3,8 @@ import pathlib
 
 from match import *
 
+# Coleção persistente de partidas usada em experimentos, que podem ser salvas
+# e carregadas do disco via pickle.
 class Study:
     matches: list[Match]
     

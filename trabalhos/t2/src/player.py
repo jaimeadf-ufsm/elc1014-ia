@@ -1,5 +1,6 @@
 import enum
 
+# Enum para representar os jogadores (Preto e Branco).
 class Player(enum.Enum):
     BLACK = 1
     WHITE = 2

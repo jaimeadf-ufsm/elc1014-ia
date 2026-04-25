@@ -9,6 +9,18 @@ from player import *
 from position import *
 from provider import *
 
+# Interface gráfica (Pygame) para visualizar e conduzir uma partida.
+#
+# A GUI renderiza o tabuleiro 6x6, as peças, as jogadas legais e uma
+# pré-visualização de capturas ao passar o mouse. Também exibe um painel lateral
+# com placar, jogador da vez e feedback de "Thinking" enquanto um agente decide.
+#
+# Ela se integra com:
+#   - Match, para avançar a partida e acessar histórico/métricas;
+#   - InputProvider, para receber jogadas humanas quando um HumanAgent está ativo.
+#
+# Para manter o loop de eventos e renderização responsivo, a execução de um turno
+# (matchup.turn) ocorre em uma thread de trabalho quando necessário.
 class GUI:
     matchup: Match
     provider: InputProvider

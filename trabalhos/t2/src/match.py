@@ -4,6 +4,10 @@ from typing import Any
 from agent import *
 from game import *
 
+# Registro de um turno dentro de uma partida.
+#
+# Guarda a jogada escolhida, o estado resultante após aplicá-la e um conjunto
+# de métricas associado à decisão.
 class Turn:
     move: Move | None
     state: GameState
@@ -14,6 +18,7 @@ class Turn:
         self.state = state
         self.metrics = metrics
 
+# Orquestra uma partida entre dois agentes sob uma variante de jogo.
 class Match:
     variant: GameVariant
     

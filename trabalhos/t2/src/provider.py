@@ -2,6 +2,11 @@ import threading
 
 from game import *
 
+# Provedor de entrada sincronizado para jogadas humanas.
+#
+# Funciona como a ponte entre a interface e o a de decisão do HumanAgent,
+# permitindo que o agente solicite um movimento e aguarde até que a interface
+# o responda.
 class InputProvider:
     condition: threading.Condition
 

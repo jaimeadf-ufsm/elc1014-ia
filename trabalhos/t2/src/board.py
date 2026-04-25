@@ -3,6 +3,15 @@ from typing import Iterable
 from player import *
 from position import *
 
+# Representação do tabuleiro do Othello usando bitboards.
+#
+# O estado do tabuleiro é mantido em dois inteiros (white_pieces e black_pieces),
+# onde cada bit representa uma casa (row * size + col). Essa estrutura
+# torna contagens e consultas rápidas e facilita o uso em simulacões.
+#
+# As operações `with_piece` e `with_pieces`  retornam um novo tabuleiro,
+# permitindo tratar o tabuleiro como imutável enquanto o motor gera estados
+# sucessores.
 class Board:
     size: int
     white_pieces: int

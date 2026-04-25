@@ -2,6 +2,17 @@ import numpy as np
 
 from game import *
 
+# A classe base que representa uma função de avaliação do jogo, sempre do ponto
+# de visto do jogador das brancas.
+# 
+# Cada avaliador deve implementar o método params, que retorna um conjunto de
+# características do tabuleiro.
+#
+# Cada característica é multiplicada por um peso, e a soma desses produtos é o
+# valor final da pontuação do tabuleiro.
+#
+# O método weights é responsável por retornar os pesos atuais do avaliador, e
+# também pode ser usado para atualizar os pesos.
 class Evaluator:
     name: str | None
     
@@ -12,9 +23,6 @@ class Evaluator:
     def n(self) -> int:
         return len(self.weights())
     
-    # Evaluates the given game state from the perspective of the WHITE player:
-    # - Positive values indicate an advantage for WHITE
-    # - negative values indicate an advantage for BLACK.
     def evaluate(self, variant: GameVariant, state: GameState) -> float:
         if state.is_over() and state.winner is not None:
             if state.winner == Player.WHITE:
@@ -54,6 +62,10 @@ class Evaluator:
         
         return str(self)
 
+# A classe que representa os tipos mais simples de avaliadores, que realmente
+# calculam as características diretamente a partir do estado do tabuleiro,
+# sem depender da combinação de outros avaliadores. Ele mantém um vetor de pesos
+# próprio, que indica a importância de cada parâmetro.
 class IndependentEvaluator(Evaluator):
     def __init__(self, w: list[float] | np.ndarray | None = None, scale: float = 1.0, name: str | None = None):
         super().__init__(name)
@@ -72,6 +84,15 @@ class IndependentEvaluator(Evaluator):
     def __str__(self) -> str:
         return f'{self.__class__.__name__}([{", ".join(f"{weight}" for weight in self.w)}])'
 
+# Avaliador de contagem de peças (material).
+#
+# Calcula dois parâmetros, normalizados pelo total de casas do tabuleiro:
+#   1) fração de peças brancas
+#   2) fração de peças pretas
+#
+# Os pesos padrão são [1.0, -1.0], o que faz com que a avaliação seja simplesmente
+# (peças brancas - peças pretas) / total. Isso mede a vantagem material direta,
+# ou seja, quanto mais peças brancas e menos pretas, melhor para as brancas.
 class CountEvaluator(IndependentEvaluator):
     def params(self, variant: GameVariant, state: GameState):
         total_pieces = state.board.size * state.board.size
@@ -87,6 +108,26 @@ class CountEvaluator(IndependentEvaluator):
     def default_weights(self):
         return np.array([1.0, -1.0])
 
+# Avaliador posicional baseado em regiões fixas do tabuleiro.
+#
+# O tabuleiro 6x6 é dividido em 6 regiões, rotuladas de 0 a 5, de acordo com a
+# tabela clássica de posições (cantos, casas C, X, A, S e centro). Para cada
+# região, calcula-se a fração de peças brancas e a fração de peças pretas
+# presentes nela. Os parâmetros retornados são:
+#   - 6 valores: fração de peças brancas nas regiões 0 a 5
+#   - 6 valores: fração de peças pretas nas mesmas regiões
+#
+# Os pesos padrão refletem o valor posicional tradicional do Othello:
+#   Região 0 (cantos): muito valiosos -> +1.0 para brancas / -1.0 pretas.
+#   Região 1 (C): casas perigosas adjacentes aos cantos -> -0.25 / +0.25.
+#   Região 2 (X): casas diagonais aos cantos, também perigosas -> -0.50 / +0.50.
+#   Região 3 (A): bordas centrais, valor modesto -> +0.10 / -0.10.
+#   Região 4 (S): anel interno próximo ao centro -> +0.05 / -0.05.
+#   Região 5 (centro): valor pequeno -> +0.01 / -0.01.
+#
+# Os sinais são invertidos para as peças pretas, de modo que a presença de peças
+# brancas em boas posições soma positivamente, enquanto peças pretas nessas posições
+# reduzem igualmente a avaliação.
 class PositionalEvaluator(IndependentEvaluator):
     def __init__(self, w: list[float] | np.ndarray | None = None, scale: float = 1.0, name: str | None = None):
         super().__init__(w, scale, name)
@@ -132,6 +173,20 @@ class PositionalEvaluator(IndependentEvaluator):
             -1, 0.25, 0.50, -0.10, -0.05, -0.01
         ])
 
+# Avaliador de mobilidade potencial (fronteira).
+#
+# Uma peça é considerada "de fronteira" se está adjacente a pelo menos uma casa
+# vazia. Esse conceito captura o princípio de que peças no interior, sem contato
+# com vazios, costumam oferecer mais mobilidade e menos opções para o adversário.
+#
+# Parâmetros (normalizados pelo total de casas):
+#   1) fração de peças brancas na fronteira
+#   2) fração de peças pretas na fronteira
+#
+# Os pesos padrão são [-1.0, 1.0]. Com isso, ter menos peças brancas na fronteira
+# aumenta a avaliação (contribuição negativa menor), enquanto ter mais peças
+# pretas na fronteira também aumenta a avaliação. O resultado premia o jogador
+# que minimiza sua própria exposição e maximiza a exposição do oponente.
 class PotentialMobilityEvaluator(IndependentEvaluator):
     directions: list[Tuple[int, int]]
     
@@ -181,6 +236,20 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
         
         return frontier_pieces
 
+# Avaliador de paridade.
+#
+# Ojogador que realiza o último movimento tem uma vantagem decisiva. Se é a vez
+# das brancas e o número de casas vazias é par, as brancas farão a última jogada
+# (paridade favorável). Se é a vez das pretas, a situação favorável às brancas
+# ocorre quando o número de casas vazias é ímpar (paridade contra as pretas).
+#
+# Parâmetro único:
+#   - 1.0 se a paridade atual favorece as brancas (último movimento será delas),
+#     0.0 caso contrário.
+#
+# O peso padrão de 1.0 adiciona um bônus constante sempre que a situação de
+# paridade for vantajosa para as brancas, capturando um aspecto importante do fim
+# de jogo.
 class ParityEvaluator(IndependentEvaluator):
     def params(self, variant: GameVariant, state: GameState):
         empty_squares = state.board.count_empty()
@@ -193,6 +262,9 @@ class ParityEvaluator(IndependentEvaluator):
     def default_weights(self):
         return np.array([1.0])
 
+# O avaliador que combina outros avaliadores, somando suas avaliações ponderadas.
+# Ele simplesmente concatena os parâmetros e pesos dos avaliadores componentes,
+# permitindo criar avaliações mais complexas a partir de avaliações mais simples.
 class CompositeEvaluator(Evaluator):
     evaluators: list[Evaluator]
     
@@ -222,6 +294,21 @@ class CompositeEvaluator(Evaluator):
     def __str__(self) -> str:
         return f'{self.__class__.__name__}([{", ".join(str(e) for e in self.evaluators)}])'
 
+# Avaliador sensível à fase do jogo.
+#
+# Divide a partida em três fases baseadas no número de casas vazias:
+#   - Abertura: mais de 22 vazias.
+#   - Meio-jogo: entre 11 e 22 vazias.
+#   - Final: até 10 vazias.
+#
+# Possui três avaliadores internos, um para cada fase. Em cada estado, apenas
+# os parâmetros do avaliador da fase ativa são considerados. Os demais são
+# zerados. Assim, o vetor de parâmetros é a concatenação de
+# (scalar * params) para cada fase, onde o escalar é 1 na fase ativa
+# e 0 nas outras.
+#
+# Os pesos continuam sendo a concatenação dos pesos de todos os avaliadores,
+# permitindo que cada fase seja ajustada independentemente.
 class PhaseAwareEvaluator(Evaluator):
     evaluators: list[Evaluator]
         
