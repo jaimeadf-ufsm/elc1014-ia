@@ -74,6 +74,15 @@ SIMULATE_PRESETS = {
                 matches
             )
     ),
+    'randomized_mcts_5000_vs_mcts_5000':(
+        lambda variant, matches:
+            generate_randomized_matchups(
+                variant,
+                MCTSAgent(5000),
+                MCTSAgent(5000),
+                matches
+            )
+    ),
     'randomized_mcts_10000_vs_mcts_10000':(
         lambda variant, matches:
             generate_randomized_matchups(
