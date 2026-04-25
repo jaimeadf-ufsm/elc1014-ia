@@ -267,6 +267,8 @@ class PhaseAwareEvaluator(Evaluator):
     def __str__(self) -> str:
         return f'{self.__class__.__name__}({", ".join(str(e) for e in self.evaluators)})'
 
+SIMPLE_COUNT_EVALUATOR = CountEvaluator(name='SCE1')
+
 CLASSICAL_EMPIRIC_EVALUATOR = PhaseAwareEvaluator(
     opening=CompositeEvaluator([
         PositionalEvaluator(scale=0.4),
@@ -345,4 +347,32 @@ CLASSICAL_SCORE_TUNED_EVALUATOR = PhaseAwareEvaluator(
         ParityEvaluator([-4.063103695321542])
     ]),
     name='CSTE1'
+)
+
+WRAP_AROUND_WIN_TUNED_EVALUATOR = PhaseAwareEvaluator(
+    CompositeEvaluator([
+        CountEvaluator([-0.13860710343627192, -0.09160050122900931]),
+        PositionalEvaluator([
+            0.20379642563961708, 0.7471041089787224, -0.4113114760053228, -1.8389999109619528, 0.36119395737986804, 0.42145480864596074,
+            -0.41020698310759873, -0.33102802955216537, 1.0651254473081762, -0.5154740427145149, 0.29356728731919735, -0.3734534053667361
+        ]),
+        PotentialMobilityEvaluator([-0.36027941096024074, -0.23821912880497764]),
+        ParityEvaluator([-0.14499359630605563])]),
+    CompositeEvaluator([CountEvaluator([1.0989468627575907, -1.0766420439616387]),
+    PositionalEvaluator([
+        1.2472937570398026, 2.866890478021251, 0.34070313893801096, 0.13149566801953028, 1.0675509843747326, 0.1706506080094676,
+        -0.6322955568249786, -3.487357195643616, 0.3592888765420382, -2.151636361213336, 0.727401557534303, 0.40641228327363355
+    ]),
+    PotentialMobilityEvaluator([-5.889247494708591, 4.911912239842629]),
+    ParityEvaluator([-0.985439514278818])]),
+    CompositeEvaluator([
+        CountEvaluator([2.3690603356379647, -1.8031746640987474]),
+        PositionalEvaluator([
+            0.84080980569063, 4.420397642465156, 0.8779609927180665, 2.4126087116559956, 2.7467522658616317, 0.44325498236758415,
+            0.17057249690968962, -4.150109099658508, -1.5216731151313656, -4.22570169976505, 0.9970806172914574, -0.12001099440289605
+        ]),
+        PotentialMobilityEvaluator([-13.457270083067666, 10.104599410055863]),
+        ParityEvaluator([-1.6736275563446976])
+    ]),
+    name='WWTE1'
 )
