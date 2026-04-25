@@ -166,10 +166,10 @@ class WrapAroundGameVariant(GameVariant):
         state.count = 0
 
         state.board = Board(self.size)
-        state.board = state.board.with_piece(middle, middle, Player.WHITE)
-        state.board = state.board.with_piece(middle + 1, middle, Player.BLACK)
-        state.board = state.board.with_piece(middle, middle  + 1, Player.BLACK)
-        state.board = state.board.with_piece(middle + 1, middle + 1, Player.WHITE)
+        state.board = state.board.with_piece(0, 0, Player.WHITE)
+        state.board = state.board.with_piece(0, self.size - 1, Player.WHITE)
+        state.board = state.board.with_piece(self.size - 1, 0, Player.BLACK)
+        state.board = state.board.with_piece(self.size - 1, self.size - 1, Player.BLACK)
        
         state.player = Player.BLACK
         state.moves = self.get_legal_moves(state.board, state.player)
@@ -249,31 +249,12 @@ class WrapAroundGameVariant(GameVariant):
             return Player.WHITE
         else:
             return None
-    
+
     def wrap_step(self, board: Board, row: int, col: int, dr: int, dc: int):
-        nr = row + dr
-        nc = col + dc
-        
-        if 0 <= nr < board.size and 0 <= nc < board.size:
-            return nr, nc
-        
-        if dr > 0:
-            kr = row
-        elif dr < 0:
-            kr = board.size - 1
-        else:
-            kr = float('inf')
+        if col == row or col == board.size - 1 - row:
+             nr = (row + dr) % board.size
+             nc = (col + dc) % board.size
             
-        if dc > 0:
-            kc = col
-        elif dc < 0:
-            kc = board.size - 1
-        else:
-            kc = float('inf')
-            
-        k = int(min(kr, kc))
+             return nr, nc
         
-        wr = row - dr * k
-        wc = col - dc * k
-        
-        return wr, wc
+        return row + dr, col + dc

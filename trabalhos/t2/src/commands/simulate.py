@@ -7,16 +7,6 @@ from study import *
 def play_match(match: Match):
     match.play()
     return match
-    
-def generate_matchups_across_minimax_depth(variant: GameVariant, opponent: MCTSAgent, evaluator: Evaluator, depths: Iterable[int], n: int = 50):
-    for depth in depths:
-        agent_one = MinimaxAgent(evaluator, depth)
-        agent_two = opponent
-        
-        matches = generate_matchup(variant, agent_one, agent_two, n)
-        
-        for match in matches:
-            yield match
 
 def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_two: Agent, n: int, steps: tuple[int, int] = (0, 8)):
     matches = generate_matchup(variant, agent_one, agent_two, n)
@@ -25,6 +15,9 @@ def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_t
         state = variant.create_game()
         
         for _ in range(random.randint(*steps)):
+            if state.is_over():
+                state = variant.create_game()
+            
             move = random.choice(state.moves)
             state = variant.make_move(state, move)
             
@@ -45,26 +38,6 @@ SIMULATE_VARIANTS = {
 }
 
 SIMULATE_PRESETS = {
-    'standard_minimax_cste1_sweep_vs_mcts_1000':(
-        lambda variant, matches:
-            generate_matchups_across_minimax_depth(
-                variant,
-                MCTSAgent(1000),
-                CLASSICAL_SCORE_TUNED_EVALUATOR,
-                range(1, 9),
-                matches
-            )
-    ),
-    'standard_minimax_cwte1_sweep_vs_mcts_1000':(
-        lambda variant, matches:
-            generate_matchups_across_minimax_depth(
-                variant,
-                MCTSAgent(1000),
-                CLASSICAL_WIN_TUNED_EVALUATOR,
-                range(1, 9),
-                matches
-            )
-    ),
     'randomized_mcts_1000_vs_mcts_1000':(
         lambda variant, matches:
             generate_randomized_matchups(
@@ -102,6 +75,20 @@ SIMULATE_PRESETS = {
             )
     )
 }
+
+for evaluator in [CLASSICAL_EMPIRIC_EVALUATOR, CLASSICAL_SCORE_TUNED_EVALUATOR, CLASSICAL_WIN_TUNED_EVALUATOR]:
+    for depth in range(1, 9):
+        for iterations in [2500, 5000, 7500, 10000]:
+            assert evaluator.name is not None
+            SIMULATE_PRESETS[f'standard_minimax_{evaluator.name.lower()}_{depth}_vs_mcts_{iterations}_14'] = (
+                lambda variant, matches, depth=depth, iterations=iterations:
+                    generate_matchup(
+                        variant,
+                        MinimaxAgent(evaluator, depth),
+                        MCTSAgent(iterations),
+                        matches
+                    )
+            )
 
 def simulate(args: Any):
     n = args.matches
