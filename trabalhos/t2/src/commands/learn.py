@@ -90,6 +90,11 @@ def learn(args: Any):
             ParityEvaluator()
         ])
     )
+
+    print("Number of matches:", len(study))
+    print("Number of turns:", sum(len(match.history) for match in study))
+    print("Total time spent:", sum(turn.metrics['elapsed_time'] for match in study for turn in match.history[1:]))
+    print("Outcomes:", Counter(match.state.winner for match in study))
     
     tune(study, evaluator, iterations)
     

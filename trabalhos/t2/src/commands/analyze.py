@@ -733,20 +733,21 @@ def _plot_board_heatmap(
     colorbar_label: str,
     output_path: Path,
 ):
-    vmax = max(int(matrix.max()), 1)
+    matrix = matrix.astype(dtype=np.float64)
+    matrix /= matrix.sum()
 
     fig, ax = plt.subplots(figsize=(6, 5.8))
     sns.heatmap(
         matrix,
         ax=ax,
         annot=True,
-        fmt='d',
+        fmt='.1%',
         cmap='YlOrRd',
         square=True,
         linewidths=0.5,
         linecolor='white',
         vmin=0,
-        vmax=vmax,
+        vmax=0.1,
         cbar_kws={'label': colorbar_label},
     )
 
@@ -803,7 +804,7 @@ def piece_placement_heatmap_pipeline(args: Any, context: AnalysisContext):
         output_dir=pipeline_dir,
         source_df=context.placement_df,
         title_prefix='Mapa de calor de posicionamento de peças',
-        colorbar_label='Quantidade de jogadas',
+        colorbar_label='Porcentagem de jogadas',
     )
 
 
@@ -815,7 +816,7 @@ def piece_capture_heatmap_pipeline(args: Any, context: AnalysisContext):
         output_dir=pipeline_dir,
         source_df=context.capture_df,
         title_prefix='Mapa de calor de capturas',
-        colorbar_label='Quantidade de peças capturadas',
+        colorbar_label='Porcentagem de peças capturadas',
     )
 
 
