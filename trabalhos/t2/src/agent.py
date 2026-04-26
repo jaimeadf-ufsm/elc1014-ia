@@ -69,7 +69,7 @@ class MinimaxAgent(Agent):
         # Dicionário de métricas, para cada profundidade d salva quantidade de nós
         # explorados e nós podados
         metrics: dict[str, Any] = {
-            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth) }
+            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth + 1) }
         }
         
         score, move = self.minimax(variant, state, self.depth, float('-inf'), float('inf'), metrics)
