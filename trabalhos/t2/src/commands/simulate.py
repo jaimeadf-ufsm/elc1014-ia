@@ -4,10 +4,13 @@ import tqdm.contrib.concurrent
 
 from study import *
     
+# Recebe Match, joga, retorna com histórico preenchido
 def play_match(match: Match):
     match.play()
     return match
 
+# Randomiza para testar diferentes fases do jogo, evita viés de opening (sempre a mesma abertura)
+# simulando cenários mais realistas
 def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_two: Agent, n: int, steps: tuple[int, int] = (0, 8)):
     matches = generate_matchup(variant, agent_one, agent_two, n)
     
@@ -21,10 +24,12 @@ def generate_randomized_matchups(variant: GameVariant, agent_one: Agent, agent_t
             move = random.choice(state.moves)
             state = variant.make_move(state, move)
             
+        # Reinicia a partida com o novo estado
         match.restart(state)
         
         yield match
-            
+
+# Gera partidas sob demanda invertendo a ordem dos agentes (cores)            
 def generate_matchup(variant: GameVariant, agent_one: Agent, agent_two: Agent, n: int):
     for _ in range(n):
         yield Match(variant, agent_one, agent_two)
@@ -76,8 +81,13 @@ SIMULATE_PRESETS = {
     )
 }
 
+# Minimax vs MCTS -> 160 presets
+
+# Para cada avaliador (5)
 for evaluator in [SIMPLE_COUNT_EVALUATOR, CLASSICAL_EMPIRIC_EVALUATOR, CLASSICAL_SCORE_TUNED_EVALUATOR, CLASSICAL_WIN_TUNED_EVALUATOR, WRAP_AROUND_WIN_TUNED_EVALUATOR]:
+    # Para cada profundidade (1-8)
     for depth in range(1, 9):
+        # Para cada número de iterações MCTS (2500, 5000, 7500, 10000)
         for iterations in [2500, 5000, 7500, 10000]:
             assert evaluator.name is not None
             SIMULATE_PRESETS[f'standard_minimax_{evaluator.name.lower()}_{depth}_vs_mcts_{iterations}_14'] = (
@@ -90,6 +100,11 @@ for evaluator in [SIMPLE_COUNT_EVALUATOR, CLASSICAL_EMPIRIC_EVALUATOR, CLASSICAL
                     )
             )
 
+# n = número de matches
+# workers = cpus paralelas
+# output = arquivo de saída
+# variant = 'classical' ou 'wrap-around'
+# preset = string (nome do preset)
 def simulate(args: Any):
     n = args.matches
     workers = args.workers
@@ -103,6 +118,7 @@ def simulate(args: Any):
     matches = preset(variant, n)
     matches = list(matches)
     
+    # Barra de progresso
     matches = tqdm.contrib.concurrent.process_map(
         play_match,
         matches,

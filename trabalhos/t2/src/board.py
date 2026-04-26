@@ -13,25 +13,29 @@ from position import *
 # permitindo tratar o tabuleiro como imutável enquanto o motor gera estados
 # sucessores.
 class Board:
-    size: int
-    white_pieces: int
-    black_pieces: int
+    size: int           # Dimensão do tabuleiro
+    white_pieces: int   # Bitboard com peças brancas
+    black_pieces: int   # Bitboard com peças pretas
     
     def __init__(self, size: int):
         self.size = size
         self.white_pieces = 0
         self.black_pieces = 0
     
+    # Coloca ume peça numa única posição
     def with_piece(self, row: int, col: int, player: Player | None):
         return self.with_pieces([Position(row, col)], player)
     
+    # Cria novo tabuleiro (imutável) e copia bitboards atuais
     def with_pieces(self, positions: Iterable[Position], player: Player | None):
         new_board = Board(self.size)
         new_board.white_pieces = self.white_pieces
         new_board.black_pieces = self.black_pieces
         
+        # Cria máscara binária para as posições
         bitmask = self.mask_of(positions)
             
+        # Ativa os bits de brancas, desativa os bits de pretas
         if player == Player.WHITE:
             new_board.white_pieces |= bitmask
             new_board.black_pieces &= ~bitmask
@@ -57,22 +61,27 @@ class Board:
         return ((~(self.white_pieces | self.black_pieces)) & bitmask).bit_count()
 
     def mask_of(self, positions: Iterable[Position] | Position | int | None = None):
+        # Retorna máscara com todos os bits ligados
         if positions is None:
             return (1 << (self.size * self.size)) - 1
 
+        # Converte em tupla
         if isinstance(positions, Position):
             positions = (positions,)
         
+        # Se já é máscara, retorna como está
         if isinstance(positions, int):
             return positions
         
         bitmask = 0
         
+        # Para cada posição, liga o bit correspondente
         for pos in positions:
             bitmask |= 1 << (pos.row * self.size + pos.col)
         
         return bitmask
     
+    # Permite usar board[row, col] para acessar uma casa
     def __getitem__(self, key: tuple[int, int]):
         row, col = key
         
@@ -82,8 +91,10 @@ class Board:
         if col < 0 or col >= self.size:
             return None
         
+        # Cria máscara com apenas 1 bit (da posição)
         bitmask = self.mask_of(Position(row, col))
         
+        # Testa se branco está na posição
         if self.white_pieces & bitmask != 0:
             return Player.WHITE
         elif self.black_pieces & bitmask != 0:

@@ -11,9 +11,11 @@ def general_pipeline(args: Any):
     study = Study.load(input_path)
     stats = collect_match_statistics(study)
     
+    # Duas tabelas: por cor e por agente (independente da cor)
     color_rows = []
     agent_rows = []
     
+    # Análise por cor
     for (black_agent, white_agent), player_stats in stats.items():
         black_wr, black_avg_time, black_wins, black_losses, black_draws = compute_player_metrics(
             player_stats[Player.BLACK]
@@ -37,7 +39,8 @@ def general_pipeline(args: Any):
             'white_losses': white_losses,
             'white_draws': white_draws,
         })
-        
+    
+    # Análise por agente
     for (player_agent, opponent_agent) in stats.keys():
         player_as_black = stats[(player_agent, opponent_agent)][Player.BLACK]
         player_as_white = stats[(opponent_agent, player_agent)][Player.WHITE]
@@ -84,6 +87,7 @@ def general_pipeline(args: Any):
     color_df.to_csv(output_path / 'color_comparison.csv', index=False)
     agent_df.to_csv(output_path / 'agent_comparison.csv', index=False)
 
+# Visualização dos movimentos (heatmaps)
 def move_analysis(args: Any):
     import numpy as np
     import seaborn as sns
@@ -160,13 +164,14 @@ def move_analysis(args: Any):
         
         plt.savefig(output_path / f'{black_agent}_vs_{white_agent}_heatmap.png')
 
-
 def collect_match_statistics(study: Study):
     stats = {}
     
     for match in study:
+        # Agrupa partidas por dupla de agentes
         key = (match.black_agent, match.white_agent)
         
+        # Se dupla ainda não existe, inicia estrutura nova
         if key not in stats:
             stats[key] = {
                 Player.BLACK: {
@@ -183,6 +188,7 @@ def collect_match_statistics(study: Study):
                 }
             }
         
+        # Atualiza contadores
         winner = match.state.winner
         if winner == Player.BLACK:
             stats[key][Player.BLACK]['wins'] += 1
@@ -194,10 +200,23 @@ def collect_match_statistics(study: Study):
             stats[key][Player.BLACK]['draws'] += 1
             stats[key][Player.WHITE]['draws'] += 1
         
+        # Pula estado inicial, coleta métricas de cada turno
         for i, turn in enumerate(match.history[1:]):
             player = match.history[i].state.player
             stats[key][player]['metrics'].append(turn.metrics)
     
+
+    # Ex.:
+    # stats = {
+    #     (MinimaxAgent, RandomAgent): {
+    #         Player.BLACK: {'wins': 8, 'losses': 2, 'draws': 0, 'metrics': [...]},
+    #         Player.WHITE: {'wins': 2, 'losses': 8, 'draws': 0, 'metrics': [...]}
+    #     },
+    #     (RandomAgent, MinimaxAgent): {
+    #         Player.BLACK: {'wins': 1, 'losses': 9, 'draws': 0, 'metrics': [...]},
+    #         Player.WHITE: {'wins': 9, 'losses': 1, 'draws': 0, 'metrics': [...]}
+    #     }
+    # }
     return stats
 
 
@@ -207,8 +226,10 @@ def compute_player_metrics(player_stats: dict):
     draws = player_stats['draws']
     total = wins + losses + draws
     
+    # Calcula taxa de vitória em porcentagem
     win_rate = wins / total * 100
     move_times = [m['elapsed_time'] for m in player_stats['metrics']]
+    # Calcula tempo médio por movimento
     avg_time = (sum(move_times) / len(move_times))
     
     return win_rate, avg_time, wins, losses, draws

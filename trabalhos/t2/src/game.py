@@ -15,12 +15,12 @@ from move import *
 #   - O jogador da vez;
 #   - A lista de movimentos legais já calculada para esse estado.
 class GameState:
-    count: int
+    count: int          # O número de movimentos realizados até agora
 
-    board: Board
+    board: Board        # Tabuleiro atual
     
-    player: Player
-    moves: list[Move]
+    player: Player      # Jogador da vez
+    moves: list[Move]   # Lista de movimentos legais neste estado
 
     winner: Player | None
     
@@ -36,10 +36,12 @@ class GameState:
 
 # Interface que define as regras de uma variante do Othello.
 class GameVariant:
+    # Retorna estado inicial da partida
     @abstractmethod
     def create_game(self) -> GameState:
         pass
     
+    # Aplica movimento, retorna novo estado
     @abstractmethod
     def make_move(self, state: GameState, move: Move) -> GameState:
         pass
@@ -63,12 +65,14 @@ class ClassicalGameVariant(GameVariant):
         
         state.count = 0
 
+        # Cria tabuleiro e coloca peças inicias no centro
         state.board = Board(self.size)
         state.board = state.board.with_piece(middle, middle, Player.WHITE)
         state.board = state.board.with_piece(middle + 1, middle, Player.BLACK)
         state.board = state.board.with_piece(middle, middle  + 1, Player.BLACK)
         state.board = state.board.with_piece(middle + 1, middle + 1, Player.WHITE)
        
+        # Pretas jogam primeiro
         state.player = Player.BLACK
         state.moves = self.get_legal_moves(state.board, state.player)
         
@@ -143,6 +147,7 @@ class ClassicalGameVariant(GameVariant):
         
         return moves
                 
+    # Vencedor é quem tem maior número de peças no tabuleiro
     def get_winner(self, board: Board):
         black_pieces = board.count_pieces(Player.BLACK)
         white_pieces = board.count_pieces(Player.WHITE)
