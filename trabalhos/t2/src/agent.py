@@ -79,6 +79,8 @@ class MinimaxAgent(Agent):
         return move, metrics
         
     def minimax(self, variant: GameVariant, state: GameState, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
+        metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
+        
         if depth == 0 or state.is_over():
             return self.evaluator.evaluate(variant, state), None
         
@@ -89,8 +91,6 @@ class MinimaxAgent(Agent):
             max_move = None
             
             for i, move in enumerate(state.moves):
-                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
-
                 next_state = variant.make_move(state, move)
                 next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
@@ -110,7 +110,6 @@ class MinimaxAgent(Agent):
             min_move = None
             
             for i, move in enumerate(state.moves):
-                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
                 next_state = variant.make_move(state, move)
                 next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
