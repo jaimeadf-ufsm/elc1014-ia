@@ -11,23 +11,26 @@ $evaluators = @(
 )
 
 # Depths to test
-$depths = @(1, 2, 3, 4, 5, 6, 7, 8)
+$depths = @(1, 2, 3, 4, 5, 6)
 
 # Iterations for MCTS
 $iterations = @(2500, 5000, 7500, 10000)
 
 # Game variants to test
-$variants = @("classical", "wrap_around")
+$variants = @("classical")
 
 # Number of matches per simulation
-$numMatches = 50
+$numMatches = 7
 
 # Number of worker threads
-$numWorkers = 20
+$numWorkers = 14
 
 # Individual presets to run (if empty, will use the generated list from evaluators/depths/iterations)
 # Example: $individualPresets = @("randomized_mcts_1000_vs_mcts_1000", "randomized_mcts_10000_vs_mcts_10000")
 $individualPresets = @()
+
+# Number of batches to run (each batch will append _1, _2, etc. to filename)
+$numBatches = 10
 
 # ============================================================
 # Script Logic (Do not modify below)
@@ -39,7 +42,7 @@ function Generate-PresetName {
         [int]$depth,
         [int]$iterations
     )
-    return "standard_minimax_$($evaluatorName.ToLower())_$depth`_vs_mcts_$($iterations)_14"
+    return "standard_minimax_$($evaluatorName.ToLower())_$depth`_vs_mcts_$($iterations)"
 }
 
 function Generate-Presets {
@@ -47,9 +50,9 @@ function Generate-Presets {
     
     if ($individualPresets.Count -eq 0) {
         # Generate from evaluators × depths × iterations
-        foreach ($evaluator in $evaluators) {
+        foreach ($iteration in $iterations) {
             foreach ($depth in $depths) {
-                foreach ($iteration in $iterations) {
+                foreach ($evaluator in $evaluators) {
                     $preset = Generate-PresetName $evaluator $depth $iteration
                     $presets += $preset
                 }
@@ -65,9 +68,10 @@ function Generate-Presets {
 function Get-OutputPath {
     param(
         [string]$variant,
-        [string]$preset
+        [string]$preset,
+        [int]$batch
     )
-    return "simulations/$variant/testing/$preset.pkl"
+    return "simulations/$variant/testing/$preset`_$batch.pkl"
 }
 
 function Run-Simulation {
@@ -154,50 +158,70 @@ if (-not (Show-PresetConfirmation $presets $variants)) {
     exit 0
 }
 
-# Run simulations
-$totalSimulations = $variants.Count * $presets.Count
-$completedSimulations = 0
-$skippedSimulations = 0
-$failedSimulations = 0
+# Run simulations for each batch
+$totalSimulations = $variants.Count * $presets.Count * $numBatches
+$totalCompletedSimulations = 0
+$totalSkippedSimulations = 0
+$totalFailedSimulations = 0
 
-Write-Host "Starting simulations..." -ForegroundColor Green
+Write-Host "Starting $numBatches batch(es) of simulations..." -ForegroundColor Green
 Write-Host ""
 
-foreach ($variant in $variants) {
-    foreach ($preset in $presets) {
-        $completedSimulations++
-        $outputPath = Get-OutputPath $variant $preset
-        
-        Write-Host "[$completedSimulations/$totalSimulations]" -ForegroundColor Magenta -NoNewline
-        Write-Host " "
-        
-        $success = Run-Simulation $variant $preset $outputPath
-        
-        if (-not $success) {
-            if (Test-Path $outputPath) {
-                $skippedSimulations++
-            } else {
-                $failedSimulations++
+for ($batchNum = 1; $batchNum -le $numBatches; $batchNum++) {
+    Write-Host "=""=""=""=""=""=""=""=""=""=""=""" -ForegroundColor Cyan
+    Write-Host "BATCH $batchNum / $numBatches" -ForegroundColor Cyan
+    Write-Host "=""=""=""=""=""=""=""=""=""=""=""" -ForegroundColor Cyan
+    Write-Host ""
+    
+    $completedSimulations = 0
+    $skippedSimulations = 0
+    $failedSimulations = 0
+    
+    foreach ($variant in $variants) {
+        foreach ($preset in $presets) {
+            $completedSimulations++
+            $totalCompletedSimulations++
+            $outputPath = Get-OutputPath $variant $preset $batchNum
+            
+            Write-Host "[$totalCompletedSimulations/$totalSimulations]" -ForegroundColor Magenta -NoNewline
+            Write-Host " "
+            
+            $success = Run-Simulation $variant $preset $outputPath
+            
+            if (-not $success) {
+                if (Test-Path $outputPath) {
+                    $skippedSimulations++
+                    $totalSkippedSimulations++
+                } else {
+                    $failedSimulations++
+                    $totalFailedSimulations++
+                }
             }
+            
+            Write-Host ""
         }
-        
-        Write-Host ""
     }
+    
+    Write-Host "Batch $batchNum Summary:" -ForegroundColor Yellow
+    Write-Host "  Completed: $($completedSimulations - $skippedSimulations - $failedSimulations)" -ForegroundColor Green
+    Write-Host "  Skipped: $skippedSimulations" -ForegroundColor Yellow
+    Write-Host "  Failed: $failedSimulations" -ForegroundColor Red
+    Write-Host ""
 }
 
 # Summary
 Write-Host ""
 Write-Host "===============================================" -ForegroundColor Cyan
-Write-Host "SIMULATION SUMMARY" -ForegroundColor Cyan
+Write-Host "OVERALL SUMMARY" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host "Total simulations: $totalSimulations" -ForegroundColor White
-Write-Host "Completed: $($totalSimulations - $skippedSimulations - $failedSimulations)" -ForegroundColor Green
-Write-Host "Skipped (already existed): $skippedSimulations" -ForegroundColor Yellow
-Write-Host "Failed: $failedSimulations" -ForegroundColor Red
+Write-Host "Completed: $($totalSimulations - $totalSkippedSimulations - $totalFailedSimulations)" -ForegroundColor Green
+Write-Host "Skipped (already existed): $totalSkippedSimulations" -ForegroundColor Yellow
+Write-Host "Failed: $totalFailedSimulations" -ForegroundColor Red
 Write-Host ""
 
-if ($failedSimulations -eq 0) {
-    Write-Host "All simulations completed successfully!" -ForegroundColor Green
+if ($totalFailedSimulations -eq 0) {
+    Write-Host "All batches completed successfully!" -ForegroundColor Green
 } else {
     Write-Host "Some simulations failed. Check the output above for details." -ForegroundColor Yellow
 }

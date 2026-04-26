@@ -81,17 +81,17 @@ SIMULATE_PRESETS = {
     )
 }
 
-# Minimax vs MCTS -> 160 presets
+# Minimax vs MCTS
 
 # Para cada avaliador (5)
-for evaluator in [SIMPLE_COUNT_EVALUATOR, CLASSICAL_EMPIRIC_EVALUATOR, CLASSICAL_SCORE_TUNED_EVALUATOR, CLASSICAL_WIN_TUNED_EVALUATOR, WRAP_AROUND_WIN_TUNED_EVALUATOR]:
-    # Para cada profundidade (1-8)
-    for depth in range(1, 9):
+for evaluator in [SIMPLE_COUNT_EVALUATOR, CLASSICAL_EMPIRIC_EVALUATOR, CLASSICAL_SCORE_TUNED_EVALUATOR, CLASSICAL_WIN_TUNED_EVALUATOR, WRAP_AROUND_WIN_TUNED_EVALUATOR, WRAP_AROUND_SCORE_TUNED_EVALUATOR]:
+    # Para cada profundidade (1-6)
+    for depth in range(1, 7):
         # Para cada número de iterações MCTS (2500, 5000, 7500, 10000)
         for iterations in [2500, 5000, 7500, 10000]:
             assert evaluator.name is not None
-            SIMULATE_PRESETS[f'standard_minimax_{evaluator.name.lower()}_{depth}_vs_mcts_{iterations}_14'] = (
-                lambda variant, matches, depth=depth, iterations=iterations:
+            SIMULATE_PRESETS[f'standard_minimax_{evaluator.name.lower()}_{depth}_vs_mcts_{iterations}'] = (
+                lambda variant, matches, depth=depth, iterations=iterations, evaluator=evaluator:
                     generate_matchup(
                         variant,
                         MinimaxAgent(evaluator, depth),

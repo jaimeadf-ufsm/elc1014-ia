@@ -69,7 +69,7 @@ class MinimaxAgent(Agent):
         # Dicionário de métricas, para cada profundidade d salva quantidade de nós
         # explorados e nós podados
         metrics: dict[str, Any] = {
-            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth + 1) }
+            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth + 1 + 1) }
         }
         
         score, move = self.minimax(variant, state, self.depth, float('-inf'), float('inf'), metrics)
@@ -82,6 +82,8 @@ class MinimaxAgent(Agent):
         return move, metrics
         
     def minimax(self, variant: GameVariant, state: GameState, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
+        metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
+        
         # Caso base
         if depth == 0 or state.is_over():
             return self.evaluator.evaluate(variant, state), None
@@ -96,10 +98,6 @@ class MinimaxAgent(Agent):
             
             # Itera sobre os possíveis movimentos no estado atual
             for i, move in enumerate(state.moves):
-                # Para cada estado explorado, incrementa a métrica
-                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
-
-                # Busca o próximo estado, reduzindo a profundidade
                 next_state = variant.make_move(state, move)
                 next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
@@ -122,7 +120,6 @@ class MinimaxAgent(Agent):
             min_move = None
             
             for i, move in enumerate(state.moves):
-                metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
                 next_state = variant.make_move(state, move)
                 next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
