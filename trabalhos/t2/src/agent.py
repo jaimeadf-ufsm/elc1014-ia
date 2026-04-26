@@ -66,13 +66,16 @@ class MinimaxAgent(Agent):
         self.depth = depth
         
     def get_move(self, variant: GameVariant, state: GameState):
+        # Dicionário de métricas, para cada profundidade d salva quantidade de nós
+        # explorados e nós podados
         metrics: dict[str, Any] = {
-            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth + 1) }
+            'by_depth': { d: { 'nodes_explored': 0, 'nodes_pruned': 0 } for d in range(0, self.depth + 1 + 1) }
         }
         
         score, move = self.minimax(variant, state, self.depth, float('-inf'), float('inf'), metrics)
         assert move is not None
         
+        # Atualiza as métricas totais
         metrics['total_nodes_explored'] = sum(depth_metrics['nodes_explored'] for depth_metrics in metrics['by_depth'].values())
         metrics['total_nodes_pruned'] = sum(depth_metrics['nodes_pruned'] for depth_metrics in metrics['by_depth'].values())
         
@@ -81,30 +84,37 @@ class MinimaxAgent(Agent):
     def minimax(self, variant: GameVariant, state: GameState, depth: int, alpha: float, beta: float, metrics: dict[str, Any]):
         metrics['by_depth'][self.depth - depth]['nodes_explored'] += 1
         
+        # Caso base
         if depth == 0 or state.is_over():
             return self.evaluator.evaluate(variant, state), None
         
+        # Se for Brancas, maximiza, caso contrário minimiza
         maximizing = state.player == Player.WHITE
         
+        # Brancas
         if maximizing:
             max_score = float('-inf')
             max_move = None
             
+            # Itera sobre os possíveis movimentos no estado atual
             for i, move in enumerate(state.moves):
                 next_state = variant.make_move(state, move)
                 next_score, _ = self.minimax(variant, next_state, depth - 1, alpha, beta, metrics)
                 
+                # Atualiza se encontrou melhor score
                 if next_score >= max_score:
                     max_score = next_score
                     max_move = move
 
                     alpha = max(alpha, max_score)                    
                     
+                # Poda e conta quantos nós foram podados
                 if beta <= alpha:
                     metrics['by_depth'][self.depth - depth]['nodes_pruned'] += len(state.moves) - i - 1
                     break
             
             return max_score, max_move
+        # Pretas
         else:
             min_score = float('inf')
             min_move = None
@@ -125,15 +135,18 @@ class MinimaxAgent(Agent):
 
             return min_score, min_move
     
+    # Dois agentes minimax são iguais se têm o mesmo evaluator e depth
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, MinimaxAgent):
             return False
         
         return self.evaluator == value.evaluator and self.depth == value.depth
     
+    # Baseado na classe, evaluator e depth
     def __hash__(self) -> int:
         return hash((self.__class__, self.evaluator, self.depth))
     
+    # MinimaxAgente(evaluator=..., depth=4)
     def __str__(self) -> str:
         return f'{self.__class__.__name__}(evaluator={self.evaluator}, depth={self.depth})'
     
@@ -154,18 +167,18 @@ class MinimaxAgent(Agent):
 #   - simulação (rollout) até o fim da partida;
 #   - seleção de filhos via UCT.
 class MCTSNode:
-    state: GameState
-    variant: GameVariant
+    state: GameState                # Estado do jogo neste nó
+    variant: GameVariant            # Regras do jogo
     
-    move: Move | None
+    move: Move | None               # Jogada que levou a este nó
 
-    n: int
-    q: float
+    n: int                          # Número de visitas (o quanto de evidência temos)
+    q: float                        # Valor acumulado (o quão bom tem sido esse nó)
 
-    parent: Self | None
-    children: list['MCTSNode']
+    parent: Self | None             # Nó pai
+    children: list['MCTSNode']      # Filhos já expandidos
     
-    untried_moves: list[Move]
+    untried_moves: list[Move]       # Movimentos ainda não explorados
     
     def __init__(self, variant: GameVariant, state: GameState, move: Move | None, parent: Self | None):
         self.variant = variant
@@ -179,10 +192,10 @@ class MCTSNode:
         self.parent = parent
         self.children = []
         
-        self.untried_moves = state.moves.copy()
+        self.untried_moves = state.moves.copy()     # Copia todos os movs legais
 
     def expand(self):
-        next_move = self.untried_moves.pop()
+        next_move = self.untried_moves.pop()        # Remove e retorna último movimento não tentado
         
         next_state = self.variant.make_move(self.state, next_move)
         next_node = MCTSNode(self.variant, next_state, next_move, self)
@@ -191,6 +204,7 @@ class MCTSNode:
         
         return next_node
     
+    # Simulação aleatória a partir do estado até o fim do jogo, retorna vencedor
     def rollout(self):
         state = self.state
         
@@ -200,20 +214,24 @@ class MCTSNode:
         
         return state.winner
 
+    # Política: movimento aleatório
     def rollout_policy(self, state: GameState):
         return random.choice(state.moves)
 
+    # Atualiza estatísitcas na árvore, q acumula pontos do ponto de vista do jogador
+    # que fez o movimento (de quem era a vez no pai)
     def backpropagate(self, result: Player | None):
-        self.n += 1
+        self.n += 1     # Incrementa visitas deste nó
         
         if self.parent:
             if result == self.parent.state.player:
-                self.q += 1
+                self.q += 1     # Vitória do jogador que veio para cá
             elif result == self.parent.state.player.opponent():
-                self.q -= 1
+                self.q -= 1     # Derrota
             
             self.parent.backpropagate(result)
     
+    # UCT, c padrão = 1.4
     def best_child(self, c):
         best_uct = float('-inf')
         best_child = self.children[0]
@@ -242,37 +260,39 @@ class MCTSNode:
 #
 # Retorna também métricas agregadas da busca para apoiar análises.
 class MCTSAgent(Agent):
-    iterations: int
-    c: float = 1.4
+    iterations: int     # Quantas iterações MCTS executar
+    c: float = 1.4      # Parâmetro UCT
     
     def __init__(self, iterations: int, c: float = 1.4):
         self.iterations = iterations
         self.c = c
         
     def get_move(self, variant: GameVariant, state: GameState):
-        root = MCTSNode(variant, state, None, None)
+        root = MCTSNode(variant, state, None, None)     # Cria raiz no estado atual
         
         for i in range(self.iterations):
-            leaf = self.tree_policy(root)
-            result = leaf.rollout()
-            leaf.backpropagate(result)
+            leaf = self.tree_policy(root)       # Fase 1: seleção + expansão
+            result = leaf.rollout()             # Fase 2: simulação
+            leaf.backpropagate(result)          # Fase 3: retropropagação
             
         metrics = {
             'total_nodes_explored': root.n,
         }
             
-        return root.best_child(0).move, metrics
+        return root.best_child(0).move, metrics     # Retorna movimento do melhor filho
     
+    # Desce pela árvore usando UCT, ao encontrar nó não totalmente expandido, expande um filho
+    # Se chegar num terminal, retorna ele
     def tree_policy(self, root: MCTSNode):
         node = root
         
         while not node.is_terminal():
             if not node.is_fully_expanded():
-                return node.expand()
+                return node.expand()            # Expande novo nó
             else:
-                node = node.best_child(self.c)
+                node = node.best_child(self.c)  # Desce pela melhor rota
         
-        return node
+        return node     # Retorna folha para rollout
     
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, MCTSAgent):

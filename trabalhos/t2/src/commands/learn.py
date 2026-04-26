@@ -6,6 +6,7 @@ import random
 from study import *
 from evaluator import *
 
+# Regressão logística -> ganhar partidas
 def tune_for_win(study: Study, evaluator: Evaluator, iterations: int):
     from sklearn.linear_model import LogisticRegression
     
@@ -32,6 +33,7 @@ def tune_for_win(study: Study, evaluator: Evaluator, iterations: int):
     
     evaluator.weights(model.coef_[0])
 
+# Regressão linear -> maximizar score
 def tune_for_score(study: Study, evaluator: Evaluator, iterations: int):
     from sklearn.linear_model import LinearRegression
     

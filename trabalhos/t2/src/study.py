@@ -12,11 +12,13 @@ class Study:
         if matches is None:
             matches = []
         
-        self.matches = matches
+        self.matches = matches          # Lista de objetos Match
     
+    # Adiciona uma partida ao final da lista
     def append(self, match: Match):
         self.matches.append(match)
     
+    # Combina estudos
     def extend(self, study: Self):
         self.matches.extend(study)
     

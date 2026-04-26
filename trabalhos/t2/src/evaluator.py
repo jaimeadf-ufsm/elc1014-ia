@@ -13,37 +13,46 @@ from game import *
 #
 # O método weights é responsável por retornar os pesos atuais do avaliador, e
 # também pode ser usado para atualizar os pesos.
+
+
 class Evaluator:
     name: str | None
     
     def __init__(self, name: str | None = None):
         self.name = name
     
+    # Número total de parametros
     @property
     def n(self) -> int:
         return len(self.weights())
     
     def evaluate(self, variant: GameVariant, state: GameState) -> float:
+        # Estado final, alguém ganhou
         if state.is_over() and state.winner is not None:
             if state.winner == Player.WHITE:
                 return float('inf')
             else:
                 return float('-inf')
         
+        # Calcula pontuação
         return (self.weights() * self.params(variant, state)).sum()
 
+    # Calcula características do estado
     @abstractmethod
     def params(self, variant: GameVariant, state: GameState) -> np.ndarray:
         pass
     
+    # Retorna/atualiza os pesos
     @abstractmethod
     def weights(self, w: list[float] |np.ndarray | None = None) -> np.ndarray:
         pass
     
+    # Pesos padrão iniciais
     @abstractmethod
     def default_weights(self) -> np.ndarray:
         pass
         
+    # Dois avaliadores são iguais se: mesmo nome e mesmos pesos
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, self.__class__):
             return False
@@ -75,6 +84,7 @@ class IndependentEvaluator(Evaluator):
             
         self.w = scale * np.array(w)
     
+    # Setter/getter: permite atualizar ou retornar os pesos
     def weights(self, w: list[float] | np.ndarray | None = None):
         if w is not None:
             self.w = np.array(w)
@@ -150,18 +160,21 @@ class PositionalEvaluator(IndependentEvaluator):
         
         self.labels = [0] * 6
         
+        # Agrupa bitboards com todas as casas da região i
         for row, indices in enumerate(table):
             for col, index in enumerate(indices):
                 self.labels[index] |= (1 << (row * 6 + col))
             
     def params(self, variant: GameVariant, state: GameState):
         n = len(self.labels)
+        # Terá 12 elementos: 6 para as brancas + 6 para as pretas
         params = np.zeros(2 * len(self.labels))
         
         for i, positions in enumerate(self.labels):
             white_pieces = state.board.count_pieces(Player.WHITE, positions)
             black_pieces = state.board.count_pieces(Player.BLACK, positions)
             
+            # Armazena em params[i] as brancas e params[i + n] as pretas (contagem normalizada)
             params[i] = white_pieces / positions.bit_count()
             params[i + n] = black_pieces / positions.bit_count()
         
@@ -169,8 +182,8 @@ class PositionalEvaluator(IndependentEvaluator):
     
     def default_weights(self):
         return np.array([
-            1, -0.25, -0.50, 0.10, 0.05, 0.01,
-            -1, 0.25, 0.50, -0.10, -0.05, -0.01
+            1, -0.25, -0.50, 0.10, 0.05, 0.01,      # Brancas
+            -1, 0.25, 0.50, -0.10, -0.05, -0.01     # Pretas
         ])
 
 # Avaliador de mobilidade potencial (fronteira).
@@ -197,6 +210,7 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
             (-1, -1), (-1, 1), (1, -1), (1, 1) 
         ]
     
+    # Conta peças de fronteira (cada cor), normaliza pelo total de casas, retorna as frações
     def params(self, variant: GameVariant, state: GameState):
         total_pieces = state.board.size * state.board.size
         
@@ -208,6 +222,7 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
         
         return np.array((white_pieces, black_pieces))
     
+    # Favorável quando brancas tem poucas peças de fronteira e pretas têm peças de fronteira
     def default_weights(self):
         return np.array([-1.0, 1.0])
     
@@ -238,7 +253,7 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
 
 # Avaliador de paridade.
 #
-# Ojogador que realiza o último movimento tem uma vantagem decisiva. Se é a vez
+# O jogador que realiza o último movimento tem uma vantagem decisiva. Se é a vez
 # das brancas e o número de casas vazias é par, as brancas farão a última jogada
 # (paridade favorável). Se é a vez das pretas, a situação favorável às brancas
 # ocorre quando o número de casas vazias é ímpar (paridade contra as pretas).
@@ -270,7 +285,7 @@ class CompositeEvaluator(Evaluator):
     
     def __init__(self, evaluators: list[Evaluator], name: str | None = None):
         super().__init__(name)
-        self.evaluators = evaluators
+        self.evaluators = evaluators        # Lista de avaliadores componentes
     
     def evaluate(self, variant: GameVariant, state: GameState):
         return sum(e.evaluate(variant, state) for e in self.evaluators)
@@ -278,10 +293,12 @@ class CompositeEvaluator(Evaluator):
     def params(self, variant: GameVariant, state: GameState):
         return np.concatenate([e.params(variant, state) for e in self.evaluators])
     
+    # Getter/setter
     def weights(self, w: list[float] | np.ndarray | None = None):
         if w is not None:
             index = 0
             
+            # Atualiza pesos distributivamente
             for e in self.evaluators:
                 e.weights(w[index:index+e.n])
                 index += e.n
@@ -320,9 +337,22 @@ class PhaseAwareEvaluator(Evaluator):
         phase = self.identify_phase(state)
         components = []
         
+        # Ex.:
+        # Meio-jogo ativo (fase = 0, 1, 0):
+
+        # components = [
+        #   zeros(6),                           # abertura: zerada
+        #   midgame.params([...]),              # meio-jogo: valores reais
+        #   zeros(6)                            # fim do jogo: zerada
+        # ]
+
+        # params totais: [0,0,0,0,0,0, valores, 0,0,0,0,0,0]
+
         for scalar, e in zip(phase, self.evaluators):
+            # Fase inativa (scalar=0) sem contribuição
             if scalar == 0:
                 components.append(np.zeros(e.n))
+            # Fase ativa (scalar=1) adiciona parâmetros ao avaliador
             else:
                 components.append(scalar * e.params(variant, state))
         
@@ -345,17 +375,21 @@ class PhaseAwareEvaluator(Evaluator):
         empty_count = state.board.count_empty()
         
         if empty_count > 22:
-            return (1, 0, 0)
+            return (1, 0, 0)        # Abertura
         elif empty_count > 10:
-            return (0, 1, 0)
+            return (0, 1, 0)        # Meio-jogo
         else:
-            return (0, 0, 1)
+            return (0, 0, 1)        # Fim do jogo
         
     def __str__(self) -> str:
         return f'{self.__class__.__name__}({", ".join(str(e) for e in self.evaluators)})'
 
+
+# Avaliadores pré-configurados
 SIMPLE_COUNT_EVALUATOR = CountEvaluator(name='SCE1')
 
+# Baseado em conhecimento clássico do Othello, diferentes pesos por fase
+# Abertura valoriza posição, meio-jogo valoriza contagem etc
 CLASSICAL_EMPIRIC_EVALUATOR = PhaseAwareEvaluator(
     opening=CompositeEvaluator([
         PositionalEvaluator(scale=0.4),
@@ -375,6 +409,7 @@ CLASSICAL_EMPIRIC_EVALUATOR = PhaseAwareEvaluator(
     name='CEE1'
 )
 
+# Pesos ajustados para maximizar vitórias (por aprendizado)
 CLASSICAL_WIN_TUNED_EVALUATOR = PhaseAwareEvaluator(
     CompositeEvaluator([
         CountEvaluator([0.16429113017792984, -0.05656811674869226]),
@@ -405,6 +440,7 @@ CLASSICAL_WIN_TUNED_EVALUATOR = PhaseAwareEvaluator(
     name='CWTE1'
 )
 
+# Pesos ajustados para maximizar diferença de pontuação final
 CLASSICAL_SCORE_TUNED_EVALUATOR = PhaseAwareEvaluator(
     CompositeEvaluator([
         CountEvaluator([-0.8730004454012975, -17.111291978317368]),
@@ -435,6 +471,7 @@ CLASSICAL_SCORE_TUNED_EVALUATOR = PhaseAwareEvaluator(
     name='CSTE1'
 )
 
+# Pesos ajustados para modo wrap-around
 WRAP_AROUND_WIN_TUNED_EVALUATOR = PhaseAwareEvaluator(
     CompositeEvaluator([
         CountEvaluator([-0.11322364220185019, -0.07125739709738235]),
