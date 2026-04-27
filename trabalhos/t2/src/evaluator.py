@@ -13,8 +13,6 @@ from game import *
 #
 # O método weights é responsável por retornar os pesos atuais do avaliador, e
 # também pode ser usado para atualizar os pesos.
-
-
 class Evaluator:
     name: str | None
     
@@ -254,17 +252,17 @@ class PotentialMobilityEvaluator(IndependentEvaluator):
 # Avaliador de paridade.
 #
 # O jogador que realiza o último movimento tem uma vantagem decisiva. Se é a vez
-# das brancas e o número de casas vazias é par, as brancas farão a última jogada
-# (paridade favorável). Se é a vez das pretas, a situação favorável às brancas
-# ocorre quando o número de casas vazias é ímpar (paridade contra as pretas).
+# das brancas e o número de casas vazias é par, as pretas farão a última jogada
+# (paridade desfavorável). Se é a vez das pretas, a situação desfavorável às brancas
+# ocorre quando o número de casas vazias é ímpar.
 #
 # Parâmetro único:
-#   - 1.0 se a paridade atual favorece as brancas (último movimento será delas),
+#   - 1.0 se a paridade atual desfavorece as brancas (último movimento será delas),
 #     0.0 caso contrário.
 #
-# O peso padrão de 1.0 adiciona um bônus constante sempre que a situação de
-# paridade for vantajosa para as brancas, capturando um aspecto importante do fim
-# de jogo.
+# O peso padrão de -1.0 adiciona um bônus constante sempre que a situação de
+# paridade for desvantajosa para as brancas, capturando um aspecto importante do
+# fim de jogo.
 class ParityEvaluator(IndependentEvaluator):
     def params(self, variant: GameVariant, state: GameState):
         empty_squares = state.board.count_empty()
@@ -275,7 +273,7 @@ class ParityEvaluator(IndependentEvaluator):
             return np.array([1.0 if empty_squares % 2 == 1 else 0.0])
     
     def default_weights(self):
-        return np.array([1.0])
+        return np.array([-1.0])
 
 # O avaliador que combina outros avaliadores, somando suas avaliações ponderadas.
 # Ele simplesmente concatena os parâmetros e pesos dos avaliadores componentes,

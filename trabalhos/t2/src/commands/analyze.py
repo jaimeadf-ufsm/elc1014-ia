@@ -595,28 +595,39 @@ def average_time_per_turn_pipeline(args: Any, context: AnalysisContext):
     pipeline_dir = _ensure_dir(args.output / 'average_time_per_turn')
     output_path = pipeline_dir / 'tempo_medio_por_turno.png'
 
-    df = context.turn_df[context.turn_df['elapsed_time'].notna()]
+    df = context.turn_df[context.turn_df['elapsed_time'].notna()].copy()
 
     if df.empty:
         _save_empty_plot(output_path, 'Tempo médio por turno', 'Sem métricas de tempo no estudo.')
         return
 
+    df['series_label'] = df['actor_label']
+
+    minimax_mask = df['actor_kind'] == 'MinimaxAgent'
+    minimax_depth = pd.to_numeric(df.loc[minimax_mask, 'actor_depth'], errors='coerce')
+
+    df.loc[minimax_mask, 'series_label'] = np.where(
+        minimax_depth.notna(),
+        'Minimax (profundidade=' + minimax_depth.astype(int).astype(str) + ')',
+        'Minimax (profundidade desconhecida)',
+    )
+
     grouped = (
-        df.groupby(['actor_label', 'turn_number'], as_index=False)['elapsed_time']
+        df.groupby(['series_label', 'turn_number'], as_index=False)['elapsed_time']
         .mean()
-        .sort_values(['actor_label', 'turn_number'])
+        .sort_values(['series_label', 'turn_number'])
     )
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
-    for agent_label, agent_df in grouped.groupby('actor_label'):
+    for series_label, agent_df in grouped.groupby('series_label'):
         ax.plot(
             agent_df['turn_number'],
             agent_df['elapsed_time'],
-            label=agent_label,
+            label=series_label,
         )
 
-    ax.set_xlabel('Número do turno (state.count)')
+    ax.set_xlabel('Número do turno')
     ax.set_ylabel('Tempo médio por jogada (s)')
     ax.set_title('Tempo médio por jogada em cada turno')
     ax.grid(True, alpha=0.25)
